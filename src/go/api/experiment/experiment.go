@@ -23,6 +23,7 @@ import (
 	"phenix/util/mm"
 	"phenix/util/mm/mmcli"
 	"phenix/util/notes"
+	"phenix/util/plog"
 	"phenix/util/pubsub"
 
 	"github.com/activeshadow/structs"
@@ -210,6 +211,10 @@ func Create(ctx context.Context, opts ...CreateOption) error {
 		"experimentName": o.name,
 		"baseDir":        o.baseDir,
 		"topology":       topo,
+	}
+
+	if o.applications != nil {
+		plog.Info(fmt.Sprintf("Got applications: %v", o.applications))
 	}
 
 	if o.scenario != "" {

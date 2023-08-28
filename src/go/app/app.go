@@ -223,6 +223,8 @@ func ApplyApps(ctx context.Context, exp *types.Experiment, opts ...Option) error
 
 	if exp.Spec.Scenario() != nil {
 		for _, app := range exp.Spec.Scenario().Apps() {
+			plog.Info(fmt.Sprintf("Configuring app %v", app.Name()))
+			fmt.Printf("%+v", app)
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
