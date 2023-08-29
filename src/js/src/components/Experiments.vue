@@ -641,8 +641,6 @@
                   newObj[name] = innerObj
                 }
 
-                console.log(state.scenarios)
-
                 this.createModal.scenarios = newObj;
                 this.createModal.showScenarios = true;
               }
