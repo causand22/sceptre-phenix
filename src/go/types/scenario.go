@@ -67,6 +67,37 @@ func DecodeScenarioFromConfig(c store.Config) (ifaces.ScenarioSpec, error) {
 	return spec, nil
 }
 
+func MakeCustomScenarioFromConfig(c store.Config, apps []string) (ifaces.ScenarioSpec, error) {
+	//Get base spec from config, going to use this to create a custom config
+	spec, err := DecodeScenarioFromConfig(c)
+	if err != nil {
+		return nil, fmt.Errorf("Error make custom scenario: %w", err)
+	}
+	//make a mapping of scenaio names to the app pointers
+	var nameToApp = make(map[string]*v2.ScenarioApp)
+	for _, app := range spec.Apps() {
+		nameToApp[app.Name()] = app.(*v2.ScenarioApp)
+	}
+
+	newSpec, err := version.GetVersionedSpecForKind(c.Kind, c.APIVersion())
+	if err != nil {
+		return nil, fmt.Errorf("getting versioned spec for config: %w", err)
+	}
+
+	//add valid applications to custom spec
+	newSpecV2 := newSpec.(*v2.ScenarioSpec)
+	for _, name := range apps {
+		appIface := nameToApp[name]
+		newSpecV2.AppsF = append(newSpecV2.AppsF, appIface)
+	}
+
+	ns, ok := newSpec.(ifaces.ScenarioSpec)
+	if !ok {
+		return nil, fmt.Errorf("Invalid custom spec")
+	}
+	return ns, nil
+}
+
 func MergeScenariosForTopology(scenario ifaces.ScenarioSpec, topology string) error {
 	// This will look for `fromScenario` keys in the provided scenario and, if
 	// present, replace the config from the specified scenario.

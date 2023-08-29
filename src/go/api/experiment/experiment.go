@@ -214,7 +214,7 @@ func Create(ctx context.Context, opts ...CreateOption) error {
 	}
 
 	if o.applications != nil {
-		plog.Info(fmt.Sprintf("Got applications: %v", o.applications))
+		plog.Info(fmt.Sprintf("Got enabled applications: %v", o.applications))
 	}
 
 	if o.scenario != "" {
@@ -234,7 +234,8 @@ func Create(ctx context.Context, opts ...CreateOption) error {
 		}
 
 		// This will upgrade the scenario to the latest known version if needed.
-		scenario, err := types.DecodeScenarioFromConfig(*scenarioC)
+		plog.Info("Creating custom scenario")
+		scenario, err := types.MakeCustomScenarioFromConfig(*scenarioC, o.applications)
 		if err != nil {
 			return fmt.Errorf("decoding scenario from config: %w", err)
 		}
