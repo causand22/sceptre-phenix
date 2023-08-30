@@ -87,8 +87,7 @@ func MakeCustomScenarioFromConfig(c store.Config, apps []string) (ifaces.Scenari
 	//add valid applications to custom spec
 	newSpecV2 := newSpec.(*v2.ScenarioSpec)
 	for _, name := range apps {
-		appIface := nameToApp[name]
-		newSpecV2.AppsF = append(newSpecV2.AppsF, appIface)
+		newSpecV2.AppsF = append(newSpecV2.AppsF, nameToApp[name])
 	}
 
 	ns, ok := newSpec.(ifaces.ScenarioSpec)

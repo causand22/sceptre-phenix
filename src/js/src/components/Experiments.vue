@@ -632,16 +632,16 @@
           response => {
             response.json().then( state => {
               if ( state.scenarios != null && Object.keys( state.scenarios ).length != 0 ) {
-                let newObj = {}
+                let scenarioObj = {}
                 for (const [name, apps] of Object.entries(state.scenarios)) {
-                  let innerObj = []
+                  let appList = []
                   for (var appIdx = 0; appIdx < apps.length; appIdx ++){
-                    innerObj.push({"name": apps[appIdx], "active": true})
+                    appList.push({"name": apps[appIdx], "active": true})
                   }
-                  newObj[name] = innerObj
+                  scenarioObj[name] = appList
                 }
 
-                this.createModal.scenarios = newObj;
+                this.createModal.scenarios = scenarioObj;
                 this.createModal.showScenarios = true;
               }
             });
