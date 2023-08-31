@@ -569,10 +569,8 @@
       },
       
       create () {      
-        var enabledApps = this.createModal.scenarios[this.createModal.scenario].filter(
-          function (item){
-            return item.active
-          }).map((item) => item.name)
+        var enabledApps = this.createModal.scenarios[this.createModal.scenario].map(
+            (item) => item.active)
 
         const experimentData = {
           name: this.createModal.name,
