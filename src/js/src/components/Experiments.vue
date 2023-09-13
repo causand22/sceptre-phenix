@@ -36,7 +36,7 @@
             <b-tag v-for="( a, index ) in createModal.scenarios[ createModal.scenario ]" 
                   :key="index" 
                   type="is-light"
-                  :class="{'is-success': a.active}"
+                  :class="{'is-success': !a.disabled}"
                   @click="clickScenario(index)">
               {{ a.name }}
             </b-tag>
@@ -569,8 +569,10 @@
       },
       
       create () {      
-        var enabledApps = this.createModal.scenarios[this.createModal.scenario].map(
-            (item) => item.active)
+        var disabledApps = this.createModal.scenarios[this.createModal.scenario].filter(
+          (item) => item.disabled
+        ).map(
+            (item) => item.name)
 
         const experimentData = {
           name: this.createModal.name,
@@ -579,7 +581,7 @@
           vlan_min: +this.createModal.vlan_min,
           vlan_max: +this.createModal.vlan_max,
           workflow_branch: this.createModal.branch,
-          applications: enabledApps
+          disabled_apps: disabledApps
         }
         
         if ( !this.createModal.name ) {
@@ -634,7 +636,7 @@
                 for (const [name, apps] of Object.entries(state.scenarios)) {
                   let appList = []
                   for (var appIdx = 0; appIdx < apps.length; appIdx ++){
-                    appList.push({"name": apps[appIdx], "active": true})
+                    appList.push({"name": apps[appIdx], "disabled": false})
                   }
                   scenarioObj[name] = appList
                 }
@@ -650,7 +652,7 @@
       },
       clickScenario (id) {
         let listOfApps = this.createModal.scenarios[this.createModal.scenario]
-        listOfApps[id].active = !listOfApps[id].active
+        listOfApps[id].disabled = !listOfApps[id].disabled
       },
 
       resetCreateModal () {

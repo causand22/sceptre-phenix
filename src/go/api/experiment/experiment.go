@@ -213,8 +213,8 @@ func Create(ctx context.Context, opts ...CreateOption) error {
 		"topology":       topo,
 	}
 
-	if o.enabledApps != nil {
-		plog.Info(fmt.Sprintf("Got enabled applications: %v", o.enabledApps))
+	if o.disabledApps != nil {
+		plog.Info(fmt.Sprintf("Got disabled applications: %v", o.disabledApps))
 	}
 
 	if o.scenario != "" {
@@ -235,7 +235,7 @@ func Create(ctx context.Context, opts ...CreateOption) error {
 
 		// This will upgrade the scenario to the latest known version if needed.
 		plog.Info("Creating custom scenario")
-		scenario, err := types.MakeCustomScenarioFromConfig(*scenarioC, o.enabledApps)
+		scenario, err := types.MakeCustomScenarioFromConfig(*scenarioC, o.disabledApps)
 		if err != nil {
 			return fmt.Errorf("decoding scenario from config: %w", err)
 		}

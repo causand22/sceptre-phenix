@@ -8,16 +8,16 @@ import (
 type CreateOption func(*createOptions)
 
 type createOptions struct {
-	name        string
-	annotations map[string]string
-	topology    string
-	scenario    string
-	enabledApps []bool
-	vlanMin     int
-	vlanMax     int
-	vlanAliases map[string]int
-	schedules   map[string]string
-	baseDir     string
+	name         string
+	annotations  map[string]string
+	topology     string
+	scenario     string
+	disabledApps []string
+	vlanMin      int
+	vlanMax      int
+	vlanAliases  map[string]int
+	schedules    map[string]string
+	baseDir      string
 }
 
 func newCreateOptions(opts ...CreateOption) createOptions {
@@ -58,9 +58,9 @@ func CreateWithScenario(s string) CreateOption {
 	}
 }
 
-func CreatedWithApplications(a []bool) CreateOption {
+func CreatedWithDisabledApplications(a []string) CreateOption {
 	return func(o *createOptions) {
-		o.enabledApps = a
+		o.disabledApps = a
 	}
 }
 

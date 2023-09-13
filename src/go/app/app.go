@@ -232,6 +232,11 @@ func ApplyApps(ctx context.Context, exp *types.Experiment, opts ...Option) error
 				continue
 			}
 
+			// Skip app if disabled
+			if app.Disabled() {
+				continue
+			}
+
 			a := GetApp(app.Name())
 			a.Init(Name(app.Name()), DryRun(options.DryRun))
 

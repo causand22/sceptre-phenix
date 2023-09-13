@@ -11,6 +11,7 @@ import (
 	v2 "phenix/types/version/v2"
 
 	"github.com/mitchellh/mapstructure"
+	"golang.org/x/exp/slices"
 )
 
 func init() {
@@ -67,31 +68,19 @@ func DecodeScenarioFromConfig(c store.Config) (ifaces.ScenarioSpec, error) {
 	return spec, nil
 }
 
-func MakeCustomScenarioFromConfig(c store.Config, apps []bool) (ifaces.ScenarioSpec, error) {
+func MakeCustomScenarioFromConfig(c store.Config, disabledApps []string) (ifaces.ScenarioSpec, error) {
 	//Get base spec from config, going to use this to create a custom config
 	spec, err := DecodeScenarioFromConfig(c)
 	if err != nil {
 		return nil, fmt.Errorf("Error make custom scenario: %w", err)
 	}
 
-	newSpec, err := version.GetVersionedSpecForKind(c.Kind, c.APIVersion())
-	if err != nil {
-		return nil, fmt.Errorf("getting versioned spec for config: %w", err)
+	//if app name in disabled app list, set to disabled
+	for _, app := range spec.Apps() {
+		app.SetDisabled(slices.Contains(disabledApps, app.Name()))
 	}
 
-	//add valid applications to custom spec
-	newSpecV2 := newSpec.(*v2.ScenarioSpec)
-	for idx, app := range spec.Apps() {
-		if apps[idx] {
-			newSpecV2.AppsF = append(newSpecV2.AppsF, app.(*v2.ScenarioApp))
-		}
-	}
-
-	ns, ok := newSpec.(ifaces.ScenarioSpec)
-	if !ok {
-		return nil, fmt.Errorf("Invalid custom spec")
-	}
-	return ns, nil
+	return spec, nil
 }
 
 func MergeScenariosForTopology(scenario ifaces.ScenarioSpec, topology string) error {
