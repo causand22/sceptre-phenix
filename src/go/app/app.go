@@ -236,7 +236,7 @@ func ApplyApps(ctx context.Context, exp *types.Experiment, opts ...Option) error
 			}
 
 			// Skip app if disabled
-			if app.Disabled() {
+			if app.Disabled() && options.Stage != ACTIONRUNNING {
 				continue
 			}
 
