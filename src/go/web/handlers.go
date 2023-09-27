@@ -22,6 +22,7 @@ import (
 	"phenix/api/cluster"
 	"phenix/api/config"
 	"phenix/api/experiment"
+	"phenix/api/image"
 	"phenix/api/scenario"
 	"phenix/api/vm"
 	"phenix/app"
@@ -2917,4 +2918,49 @@ func parseInt(v string, d *int) error {
 	var err error
 	*d, err = strconv.Atoi(v)
 	return err
+}
+
+// GET /image/list
+func ListImage(w http.ResponseWriter, r *http.Request) {
+	images, err := image.List()
+	if err != nil {
+		err_string := fmt.Sprintf("failed to list images: %v", err)
+		http.Error(w, err_string, http.StatusInternalServerError)
+		return
+	}
+	body, _ := json.Marshal(images)
+	w.Write(body)
+}
+
+// POST /image/create
+func CreateImage(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query() 
+	name := query.Get("name")
+	saveas := query.Get("saveas")
+	overlays := strings.Split(query.Get("overlays"), " ")
+	packages := strings.Split(query.Get("packages"), " ")
+	scripts := strings.Split(query.Get("scripts"), " ")
+	err := image.CreateFromConfig(name, saveas, overlays, packages, scripts)
+	if err != nil {
+		err_string := fmt.Sprintf("creating image failed: %v", err)
+		http.Error(w, err_string, http.StatusInternalServerError)
+		return
+	}
+}
+
+// POST /image/build
+func BuildImage(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query() 
+	ctx := context.Background()
+	name := query.Get("name")
+	verbosity := 0
+	cache := true
+	dryrun := false
+	output := query.Get("output")
+	err := image.Build(ctx, name, verbosity, cache, dryrun, output)
+	if err != nil {
+		err_string := fmt.Sprintf("building image failed: %v", err)
+		http.Error(w, err_string, http.StatusInternalServerError)
+		return
+	}
 }
