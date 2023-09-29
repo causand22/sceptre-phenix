@@ -153,7 +153,7 @@ func Create(name string, img *v1.Image) error {
 	}
 
 	if err := store.Create(&c); err != nil {
-		return fmt.Errorf("storing image config: %w", err)
+		return fmt.Errorf("storing image config %s: %w", name, err)
 	}
 
 	return nil

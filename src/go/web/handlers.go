@@ -27,6 +27,7 @@ import (
 	"phenix/api/vm"
 	"phenix/app"
 	"phenix/store"
+	v1 "phenix/types/version/v1"
 	"phenix/util/mm"
 	"phenix/util/notes"
 	"phenix/util/plog"
@@ -2922,6 +2923,7 @@ func parseInt(v string, d *int) error {
 
 // GET /image/list
 func ListImage(w http.ResponseWriter, r *http.Request) {
+	plog.Debug("HTTP handler called", "handler", "ListImage")
 	images, err := image.List()
 	if err != nil {
 		err_string := fmt.Sprintf("failed to list images: %v", err)
@@ -2932,25 +2934,106 @@ func ListImage(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+// GET /image/create
+func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
+
+	plog.Debug("HTTP handler called", "handler", "CreateImageDefaults")
+
+	img := &v1.Image{}
+	err := image.SetDefaults(img)
+	if err != nil {
+		plog.Error("Setting defaults on empty image", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	body, err := marshaler.Marshal(&proto.Image{
+		Variant:          img.Variant,
+		Os:               img.Os,
+		InstallMedia:     img.InstallMedia,
+		Release:          img.Release,
+		Format:           string(img.Format),
+		Ramdisk:          img.Ramdisk,
+		Compress:         img.Compress,
+		Size:             img.Size,
+		Mirror:           img.Mirror,
+		DebAppend:        img.DebAppend,
+		Packages:         img.Packages,
+		Overlays:         img.Overlays,
+		Scripts:          img.Scripts,
+		ScriptOrder:      img.ScriptOrder,
+		IncludeMiniccc:   img.IncludeMiniccc,
+		IncludeProtonuke: img.IncludeProtonuke,
+		Cache:            img.Cache,
+		ScriptPaths:      img.ScriptPaths,
+		VerboseLogs:      img.VerboseLogs,
+	})
+	if err != nil {
+		plog.Error("marshaling image", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(body)
+}
+
 // POST /image/create
 func CreateImage(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query() 
-	name := query.Get("name")
-	saveas := query.Get("saveas")
-	overlays := strings.Split(query.Get("overlays"), " ")
-	packages := strings.Split(query.Get("packages"), " ")
-	scripts := strings.Split(query.Get("scripts"), " ")
-	err := image.CreateFromConfig(name, saveas, overlays, packages, scripts)
+	fmt.Println("meep beep")
+	plog.Debug("HTTP handler called", "handler", "CreateImage")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		plog.Error("reading request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	var req proto.CreateImageRequest
+
+	if err = unmarshaler.Unmarshal(body, &req); err != nil {
+		plog.Error("unmashaling request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	//TODO: Is there a better way to do this?
+	img := &v1.Image{
+		Variant:          req.Image.Variant,
+		Os:               req.Image.Os,
+		InstallMedia:     req.Image.InstallMedia,
+		Release:          req.Image.Release,
+		Format:           v1.Format(req.Image.Format),
+		Ramdisk:          req.Image.Ramdisk,
+		Compress:         req.Image.Compress,
+		Size:             req.Image.Size,
+		Mirror:           req.Image.Mirror,
+		DebAppend:        req.Image.DebAppend,
+		Packages:         req.Image.Packages,
+		Overlays:         req.Image.Overlays,
+		Scripts:          req.Image.Scripts,
+		ScriptOrder:      req.Image.ScriptOrder,
+		IncludeMiniccc:   req.Image.IncludeMiniccc,
+		IncludeProtonuke: req.Image.IncludeProtonuke,
+		Cache:            req.Image.Cache,
+		ScriptPaths:      req.Image.ScriptPaths,
+		VerboseLogs:      req.Image.VerboseLogs,
+	}
+
+	fmt.Printf("%+v\n", img)
+	err = image.Create(req.Name, img)
+
 	if err != nil {
 		err_string := fmt.Sprintf("creating image failed: %v", err)
 		http.Error(w, err_string, http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusNoContent)
+
 }
 
 // POST /image/build
+// TODO: implement protobuf query reading
 func BuildImage(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query() 
+	query := r.URL.Query()
 	ctx := context.Background()
 	name := query.Get("name")
 	verbosity := 0
