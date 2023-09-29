@@ -52,72 +52,72 @@ var (
 // error will be returned if the variant value is not valid (acceptable values
 // are `minbase` or `mingui`).
 func SetDefaults(img *v1.Image) error {
+
+	if img.Os == "linux" {
+		if img.Variant == "" {
+			img.Variant = "minbase"
+		}
+
+		if img.Release == "" {
+			img.Release = "bionic"
+		}
+
+		if img.Mirror == "" {
+			img.Mirror = "http://us.archive.ubuntu.com/ubuntu/"
+		}
+
+		if !strings.Contains(img.DebAppend, "--components=") {
+			if img.Release == "kali" || img.Release == "kali-rolling" {
+				img.DebAppend += " --components=" + strings.Join(PACKAGES_COMPONENTS_KALI, ",")
+			} else {
+				img.DebAppend += " --components=" + strings.Join(PACKAGES_COMPONENTS, ",")
+			}
+		}
+		img.Scripts = make(map[string]string)
+		switch img.Variant {
+		case "minbase":
+			if img.Release == "kali" || img.Release == "kali-rolling" {
+				img.Packages = append(img.Packages, PACKAGES_KALI...)
+			} else {
+				img.Packages = append(img.Packages, PACKAGES_UBUNTU...)
+			}
+		case "mingui":
+			if img.Release == "kali" || img.Release == "kali-rolling" {
+				img.Packages = append(img.Packages, PACKAGES_KALI...)
+				img.Packages = append(img.Packages, PACKAGES_MINGUI_KALI...)
+			} else {
+				img.Packages = append(img.Packages, PACKAGES_UBUNTU...)
+				img.Packages = append(img.Packages, PACKAGES_MINGUI...)
+				if img.Release == "xenial" {
+					img.Packages = append(img.Packages, "qupzilla")
+				} else {
+					img.Packages = append(img.Packages, "falkon")
+				}
+				addScriptToImage(img, "POSTBUILD_GUI", POSTBUILD_GUI)
+			}
+		default:
+			return fmt.Errorf("variant %s is not implemented", img.Variant)
+		}
+
+		addScriptToImage(img, "POSTBUILD_APT_CLEANUP", POSTBUILD_APT_CLEANUP)
+
+		switch img.Variant {
+		case "minbase", "mingui":
+			addScriptToImage(img, "POSTBUILD_NO_ROOT_PASSWD", POSTBUILD_NO_ROOT_PASSWD)
+			addScriptToImage(img, "POSTBUILD_PHENIX_HOSTNAME", POSTBUILD_PHENIX_HOSTNAME)
+			addScriptToImage(img, "POSTBUILD_PHENIX_BASE", POSTBUILD_PHENIX_BASE)
+		default:
+			return fmt.Errorf("variant %s is not implemented", img.Variant)
+		}
+		img.Packages = append(img.Packages, PACKAGES_DEFAULT...)
+	}
+
 	if img.Size == "" {
 		img.Size = "5G"
 	}
 
-	if img.Variant == "" {
-		img.Variant = "minbase"
-	}
-
-	if img.Release == "" {
-		img.Release = "bionic"
-	}
-
-	if img.Mirror == "" {
-		img.Mirror = "http://us.archive.ubuntu.com/ubuntu/"
-	}
-
 	if img.Format == "" {
 		img.Format = "raw"
-	}
-
-	if !strings.Contains(img.DebAppend, "--components=") {
-		if img.Release == "kali" || img.Release == "kali-rolling" {
-			img.DebAppend += " --components=" + strings.Join(PACKAGES_COMPONENTS_KALI, ",")
-		} else {
-			img.DebAppend += " --components=" + strings.Join(PACKAGES_COMPONENTS, ",")
-		}
-	}
-
-	img.Scripts = make(map[string]string)
-
-	img.Packages = append(img.Packages, PACKAGES_DEFAULT...)
-
-	switch img.Variant {
-	case "minbase":
-		if img.Release == "kali" || img.Release == "kali-rolling" {
-			img.Packages = append(img.Packages, PACKAGES_KALI...)
-		} else {
-			img.Packages = append(img.Packages, PACKAGES_UBUNTU...)
-		}
-	case "mingui":
-		if img.Release == "kali" || img.Release == "kali-rolling" {
-			img.Packages = append(img.Packages, PACKAGES_KALI...)
-			img.Packages = append(img.Packages, PACKAGES_MINGUI_KALI...)
-		} else {
-			img.Packages = append(img.Packages, PACKAGES_UBUNTU...)
-			img.Packages = append(img.Packages, PACKAGES_MINGUI...)
-			if img.Release == "xenial" {
-				img.Packages = append(img.Packages, "qupzilla")
-			} else {
-				img.Packages = append(img.Packages, "falkon")
-			}
-			addScriptToImage(img, "POSTBUILD_GUI", POSTBUILD_GUI)
-		}
-	default:
-		return fmt.Errorf("variant %s is not implemented", img.Variant)
-	}
-
-	addScriptToImage(img, "POSTBUILD_APT_CLEANUP", POSTBUILD_APT_CLEANUP)
-
-	switch img.Variant {
-	case "minbase", "mingui":
-		addScriptToImage(img, "POSTBUILD_NO_ROOT_PASSWD", POSTBUILD_NO_ROOT_PASSWD)
-		addScriptToImage(img, "POSTBUILD_PHENIX_HOSTNAME", POSTBUILD_PHENIX_HOSTNAME)
-		addScriptToImage(img, "POSTBUILD_PHENIX_BASE", POSTBUILD_PHENIX_BASE)
-	default:
-		return fmt.Errorf("variant %s is not implemented", img.Variant)
 	}
 
 	if len(img.ScriptPaths) > 0 {
@@ -254,9 +254,14 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 			return fmt.Errorf("generate vmdb config from template: %w", err)
 		}
 	}
-
-	if !dryrun && !shell.CommandExists("vmdb2") {
-		return fmt.Errorf("vmdb2 app does not exist in your path")
+	var script string
+	if img.Os == "linux" {
+		script = "vmdb2"
+	} else if img.Os == "windows" {
+		script = "windb"
+	}
+	if !dryrun && !shell.CommandExists(script) {
+		return fmt.Errorf("%s app does not exist in your path", script)
 	}
 
 	args := []string{
@@ -276,13 +281,13 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 	if dryrun {
 		fmt.Printf("DRY RUN: vmdb2 %s\n", strings.Join(args, " "))
 	} else {
-		cmd := exec.Command("vmdb2", args...)
+		cmd := exec.Command(script, args...)
 
 		stdout, _ := cmd.StdoutPipe()
 		stderr, _ := cmd.StderrPipe()
 
 		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("starting vmdb2 command: %w", err)
+			return fmt.Errorf("starting %s command: %w", script, err)
 		}
 
 		go func() {
@@ -300,7 +305,7 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 		}()
 
 		if err := cmd.Wait(); err != nil {
-			return fmt.Errorf("building image with vmdb2: %w", err)
+			return fmt.Errorf("building image with %s: %w", script, err)
 		}
 
 		if img.IncludeMiniccc {

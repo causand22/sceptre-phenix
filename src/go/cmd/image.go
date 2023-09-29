@@ -112,6 +112,7 @@ func newImageCreateCmd() *cobra.Command {
 			}
 
 			name := args[0]
+			img.Os = MustGetString(cmd.Flags(), "os")
 			img.Size = MustGetString(cmd.Flags(), "size")
 			img.Variant = MustGetString(cmd.Flags(), "variant")
 			img.Release = MustGetString(cmd.Flags(), "release")
@@ -140,6 +141,15 @@ func newImageCreateCmd() *cobra.Command {
 				return fmt.Errorf("Must provide a valid unit for disk size option (e.g., '500M' or '10G')")
 			}
 
+			if img.Os == "windows" {
+				if cmd.Flags().Lookup("media").Value.String() == "" {
+					return fmt.Errorf("Must provide install media path for windows image")
+				}
+				img.InstallMedia = MustGetString(cmd.Flags(), "media")
+				img.Variant = ""
+				img.Release = ""
+			}
+
 			if err := image.Create(name, &img); err != nil {
 				err := util.HumanizeError(err, "Unable to create the "+name+" image")
 				return err.Humanized()
@@ -152,6 +162,8 @@ func newImageCreateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringP("size", "s", "5G", "Image size to use")
+	cmd.Flags().String("os", "linux", "Operating system (windows, linux)")
+	cmd.Flags().String("media", "", "Path to windows install media")
 	cmd.Flags().StringP("variant", "v", "minbase", "Image variant to use")
 	cmd.Flags().StringP("release", "r", "bionic", "OS release codename")
 	cmd.Flags().StringP("mirror", "m", "http://us.archive.ubuntu.com/ubuntu/", "Debootstrap mirror (must match release)")
