@@ -2940,6 +2940,7 @@ func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
 	plog.Debug("HTTP handler called", "handler", "CreateImageDefaults")
 
 	img := &v1.Image{}
+	img.Os = "linux"
 	err := image.SetDefaults(img)
 	if err != nil {
 		plog.Error("Setting defaults on empty image", "err", err)
@@ -2978,7 +2979,6 @@ func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
 
 // POST /image/create
 func CreateImage(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("meep beep")
 	plog.Debug("HTTP handler called", "handler", "CreateImage")
 
 	body, err := io.ReadAll(r.Body)
@@ -2995,6 +2995,7 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
+
 	//TODO: Is there a better way to do this?
 	img := &v1.Image{
 		Variant:          req.Image.Variant,
@@ -3018,7 +3019,6 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 		VerboseLogs:      req.Image.VerboseLogs,
 	}
 
-	fmt.Printf("%+v\n", img)
 	err = image.Create(req.Name, img)
 
 	if err != nil {

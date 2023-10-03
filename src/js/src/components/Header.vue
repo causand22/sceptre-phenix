@@ -36,7 +36,10 @@ are only available to Global Administrator or Global Viewer.
           <menu-link v-if="auth && roleAllowed('experiments', 'list')"
                         :to="builderLoc()"
                         external
-                        class="navbar-item">Builder</menu-link>
+                        class="navbar-item">Experiment Builder</menu-link>
+          <menu-link v-if="auth && roleAllowed('experiments', 'list')"
+                        :to="{name: 'imagebuilder'}"
+                        class="navbar-item">Image Builder</menu-link>
           <menu-link v-if="auth && roleAllowed('miniconsole', 'post')"
                         :to="{name: 'console'}"
                         class="navbar-item">Console</menu-link>
