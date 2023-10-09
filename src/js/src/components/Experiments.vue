@@ -601,7 +601,7 @@
         this.$http.post(
           'experiments', experimentData, { timeout: 0 } 
         ).then(
-          response => {            
+          _ => {            
             this.isWaiting = false;
           }, err => {
             this.errorNotification(err);

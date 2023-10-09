@@ -12,15 +12,45 @@
                         :message="createModal.nameErrMsg">
                         <b-input type="text" v-model="newImageForm.name"></b-input>
                     </b-field>
-                    <b-field label="OS">
-                        <b-input type="text" v-model="newImageForm.image.os"></b-input>
+                    <b-field label="OS"
+                        :type="createModal.osErrType"
+                        :message="createModal.osErrMsg">
+                        <div class="level">
+                            <div class="level-left">
+                                <b-select placeholder="Select an OS" v-model="newImageForm.image.os">
+                                    <option value="linux">Linux</option>
+                                    <option value="windows">Windows</option>
+                                </b-select>
+                            </div>
+                            <div class="level-right">
+                                <button class="button is-light" @click="update_defaults()">Populate Defaults</button>
+                            </div>
+                        </div>
+
                     </b-field>
-                    <b-field label="Variant">
-                        <b-input type="text" v-model="newImageForm.image.variant"></b-input>
-                    </b-field>
-                    <b-field label="Release">
-                        <b-input type="text" v-model="newImageForm.image.release"></b-input>
-                    </b-field>
+
+                    <b-collapse class="card" animation="slide" :open="false" v-if="newImageForm.image.os == 'linux'">
+                        <template #trigger="props">
+                            <div class="card-header" role="button">
+                                <p class="card-header-title">Linux Options</p>
+                                <a class="card-header-icon">
+                                <b-icon type="is-dark" size="is-small" :icon="props.open ? 'chevron-down' : 'chevron-up'">
+                                </b-icon>
+                                </a>
+                            </div>
+                        </template>
+                        <div class="card-content">
+                            <div class="content">
+                                <b-field label="Variant">
+                                    <b-input type="text" v-model="newImageForm.image.variant"></b-input>
+                                </b-field>
+                                <b-field label="Release">
+                                    <b-input type="text" v-model="newImageForm.image.release"></b-input>
+                                </b-field>
+                            </div>
+                        </div>
+                    </b-collapse>
+
                     <b-field label="Format">
                         <b-input type="text" v-model="newImageForm.image.format"></b-input>
                     </b-field>
@@ -55,15 +85,38 @@
                         </b-taginput>
                     </b-field>
 
+                    <!-- <b-field label="Scripts">
+                        <b-taginput
+                            v-model="newImageForm.image.scripts"
+                            placeholder="Add a package"
+                            type="is-info">
+                        </b-taginput>
+                    </b-field> -->
+
                 </section>
 
-                <footer class="modal-card-foot buttons is-right">
-                    <button class="button is-light" :disabled="!validate()" @click="create">Create Experiment</button>
+                <footer class="modal-card-foot">
+                    <button class="button is-danger mr-auto" @click="clear_form">Reset Form</button>
+                    <button class="button is-light" :disabled="!validate()" @click="create">Create Image</button>
                 </footer>
             </div>
         </b-modal>
 
-
+        <template v-if="images.length == 0">
+        <section class="hero is-light is-bold is-large">
+            <div class="hero-body">
+            <div class="container" style="text-align: center">
+                <!-- <h1 class="title">
+                There are no experiments!
+                </h1> -->
+                <!-- #TODO: add role allowed-->
+                <b-button type="is-success" outlined @click="createModal.active = true">
+                    Create An Image
+                </b-button>
+            </div>
+            </div>
+        </section>
+        </template>
         <hr>
         Welcome to the image builder page!
         <div id="test-div">
@@ -76,7 +129,6 @@
 </template>
 
 <script>
-import ImageBuilderTagField from './ImageBuilderTagField.vue';
 
 export default {
     beforeDestroy() {
@@ -86,11 +138,11 @@ export default {
         console.log("Created");
         this.isWaiting = false;
         // this.images = [];
-        this.update_defaults();
+        this.clear_form();
     },
     methods: {
         get_image_list() {
-            this.$http.get('image/list').then(response => {
+            this.$http.get(`image/list`).then(response => {
                 response.json().then(state => {
                     console.log(state);
                     this.images = state;
@@ -100,18 +152,21 @@ export default {
                 this.errorNotification(err);
             });
         },
+        clear_form(){
 
+        },
         update_defaults() {
             this.newImageForm.name = ""
-            this.$http.get('image/create').then(response => {
+            this.$http.get(`image/create?os=${this.newImageForm.image.os}`).then(response => {
                 response.json().then(state => {
-                    this.createModal.info = state;
-                    this.newImageForm.image = state;
+                    console.log(this.newImageForm.image, state)
+                    this.newImageForm.image = state
                 });
             }, err => {
                 console.error(err);
             });
         },
+
         show_modal() {
             this.createModal.active = true;
         },
@@ -137,10 +192,20 @@ export default {
                 this.createModal.nameErrType = null;
                 this.createModal.nameErrMsg = null;
             }
+
+            if (this.newImageForm.image.os != "linux" && this.newImageForm.image.os != "windows") {
+                this.createModal.osErrType = 'is-danger';
+                this.createModal.osErrMsg = 'OS must be either linux or windows'
+            } else {
+                this.createModal.osErrType = null;
+                this.createModal.osErrMsg = null;
+            }
+
             return true;
         },
         resetCreateModal(){
-            this.update_defaults();
+            this.clear_form();
+        
         },
         create(){ 
             console.log(this.newImageForm)
@@ -171,6 +236,8 @@ export default {
                 name: null,
                 nameErrType: null,
                 nameErrMsg: null,
+                osErrType: null,
+                osErrMsg: null,
                 tempPackage: null,
             },
             newImageForm: {
@@ -196,7 +263,6 @@ export default {
                     variant: null,
                     verbose_logs: false
                 }
-
             }
         };
     }
