@@ -141,7 +141,7 @@ func buildSingleVMTable(table *tablewriter.Table, vm mm.VM) {
 func PrintTableOfImageConfigs(writer io.Writer, optional []string, imgs ...types.Image) {
 	var (
 		table = tablewriter.NewWriter(writer)
-		cols  = []string{"Name", "OS", "Size", "Variant", "Release", "Overlays", "Packages", "Scripts", "Install Media"}
+		cols  = []string{"Name", "Size", "Variant", "Release", "Overlays", "Packages", "Scripts", "Install Media"}
 	)
 
 	cols = append(cols, optional...)
@@ -157,7 +157,6 @@ func PrintTableOfImageConfigs(writer io.Writer, optional []string, imgs ...types
 
 		row := []string{
 			img.Metadata.Name,
-			img.Spec.Os,
 			img.Spec.Size,
 			img.Spec.Variant,
 			img.Spec.Release,

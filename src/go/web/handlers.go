@@ -2949,7 +2949,7 @@ func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
 	}
 	body, err := marshaler.Marshal(&proto.Image{
 		Variant:          img.Variant,
-		Os:               img.Os,
+		Os:               string(img.Os),
 		InstallMedia:     img.InstallMedia,
 		Release:          img.Release,
 		Format:           string(img.Format),
@@ -2999,7 +2999,7 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 	//TODO: Is there a better way to do this?
 	img := &v1.Image{
 		Variant:          req.Image.Variant,
-		Os:               req.Image.Os,
+		Os:               v1.Os(req.Image.Os),
 		InstallMedia:     req.Image.InstallMedia,
 		Release:          req.Image.Release,
 		Format:           v1.Format(req.Image.Format),

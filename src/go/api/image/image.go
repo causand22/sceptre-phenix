@@ -53,7 +53,7 @@ var (
 // are `minbase` or `mingui`).
 func SetDefaults(img *v1.Image) error {
 
-	if img.Os == "linux" {
+	if img.Os == v1.Os_linux {
 		if img.Variant == "" {
 			img.Variant = "minbase"
 		}
@@ -243,31 +243,45 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 
 		img.Cache = cache
 
-		// The Kali package repos use `kali-rolling` as the release name.
-		if img.Release == "kali" {
-			img.Release = "kali-rolling"
-		}
+		if img.Os == "linux" {
+			// The Kali package repos use `kali-rolling` as the release name.
+			if img.Release == "kali" {
+				img.Release = "kali-rolling"
+			}
 
-		filename = output + "/" + name + ".vmdb"
+			filename = output + "/" + name + ".vmdb"
 
-		if err := tmpl.CreateFileFromTemplate("vmdb.tmpl", img, filename); err != nil {
-			return fmt.Errorf("generate vmdb config from template: %w", err)
+			if err := tmpl.CreateFileFromTemplate("vmdb.tmpl", img, filename); err != nil {
+				return fmt.Errorf("generate vmdb config from template: %w", err)
+			}
 		}
 	}
 	var script string
 	if img.Os == "linux" {
 		script = "vmdb2"
 	} else if img.Os == "windows" {
-		script = "windb"
+		script = "vmwin"
 	}
 	if !dryrun && !shell.CommandExists(script) {
 		return fmt.Errorf("%s app does not exist in your path", script)
 	}
 
 	args := []string{
-		filename,
 		"--output", output + "/" + name,
 		"--rootfs-tarball", output + "/" + name + ".tar",
+	}
+
+	if img.Os == "windows" {
+		winargs := []string{
+			"--install-image", img.InstallMedia,
+			"--edition", img.Edition,
+		}
+		args = append(args, winargs...)
+	} else {
+		linuxargs := []string{
+			filename,
+		}
+		args = append(linuxargs, args...)
 	}
 
 	if verbosity >= V_VERBOSE {
@@ -279,7 +293,7 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 	}
 
 	if dryrun {
-		fmt.Printf("DRY RUN: vmdb2 %s\n", strings.Join(args, " "))
+		fmt.Printf("DRY RUN: %s %s\n", script, strings.Join(args, " "))
 	} else {
 		cmd := exec.Command(script, args...)
 

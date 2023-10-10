@@ -14,10 +14,18 @@ const (
 	Format_Vhdx  Format = "vhdx"
 )
 
+type Os string
+
+const (
+	Os_windows Os = "windows"
+	Os_linux   Os = "linux"
+)
+
 type Image struct {
 	Variant      string            `json:"variant" yaml:"variant"`
-	Os           string            `json:"os" yaml:"os"`
-	InstallMedia string            `json:"install_media" yaml:"install_media"`
+	Os           Os                `json:"os" yaml:"os"`
+	InstallMedia string            `json:"install_media" yaml:"install_media" structs:"install_media" mapstructure:"install_media"`
+	Edition      string            `json:"edition" yaml:"edition"`
 	Release      string            `json:"release" yaml:"release"`
 	Format       Format            `json:"format" yaml:"format"`
 	Ramdisk      bool              `json:"ramdisk" yaml:"ramdisk"`
