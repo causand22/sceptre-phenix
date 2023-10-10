@@ -2,16 +2,19 @@
 <template>
     <div class="content">
         <b-modal :active.sync="createModal.active" :on-cancel="resetCreateModal" has-modal-card>
-            <div class="modal-card" style="width:25em">
+            <div class="modal-card" style="width:40em">
                 <header class="modal-card-head">
                     <p class="modal-card-title">Create a New Image</p>
                 </header>
                 <section class="modal-card-body">
+
                     <b-field label="Image Name" 
                         :type="createModal.nameErrType" 
                         :message="createModal.nameErrMsg">
                         <b-input type="text" v-model="newImageForm.name"></b-input>
                     </b-field>
+
+
                     <b-field label="OS"
                         :type="createModal.osErrType"
                         :message="createModal.osErrMsg">
@@ -23,10 +26,9 @@
                                 </b-select>
                             </div>
                             <div class="level-right">
-                                <button class="button is-light" @click="update_defaults()">Populate Defaults</button>
+                                <button class="button is-light" @click="populate_defaults()">Populate Defaults</button>
                             </div>
                         </div>
-
                     </b-field>
 
                     <b-collapse class="card" animation="slide" :open="false" v-if="newImageForm.image.os == 'linux'">
@@ -51,22 +53,16 @@
                         </div>
                     </b-collapse>
 
+
+
                     <b-field label="Format">
                         <b-input type="text" v-model="newImageForm.image.format"></b-input>
                     </b-field>
                     <b-field label="Size">
                         <b-input type="text" v-model="newImageForm.image.size"></b-input>
                     </b-field>
-                    <b-field>
-                        <b-checkbox v-model="newImageForm.image.compress" style="color:black">
-                            Compress
-                        </b-checkbox>
-                    </b-field>
-                    <b-field>
-                        <b-checkbox v-model="newImageForm.image.ramdisk" style="color:black">
-                            Ramdisk
-                        </b-checkbox>
-                    </b-field>
+
+
                     <b-field>
                         <b-checkbox v-model="newImageForm.image.include_protonuke" style="color:black">
                             Include Protonuke
@@ -81,7 +77,7 @@
                         <b-taginput
                             v-model="newImageForm.image.packages"
                             placeholder="Add a package"
-                            type="is-info">
+                            type="is-light">
                         </b-taginput>
                     </b-field>
 
@@ -92,7 +88,54 @@
                             type="is-info">
                         </b-taginput>
                     </b-field> -->
-
+                    <b-collapse class="card" animation="slide" :open="false">
+                        <template #trigger="props">
+                            <div class="card-header" role="button">
+                                <p class="card-header-title">Advanced Options</p>
+                                <a class="card-header-icon">
+                                <b-icon type="is-dark" size="is-small" :icon="props.open ? 'chevron-down' : 'chevron-up'">
+                                </b-icon>
+                                </a>
+                            </div>
+                        </template>
+                        <div class="card-content">
+                            <div class="content">
+                                <b-field label="Debootstrap Append">
+                                    <b-input type="textarea" v-model="newImageForm.image.deb_append"></b-input>
+                                    <!-- <b-tooltip label="Additional arguments to debootstrap"
+                                        type="is-light"
+                                        multilined>
+                                        <b-icon icon="question-circle" style="color:#383838"></b-icon>
+                                    </b-tooltip> -->
+                                </b-field>
+                                <b-field>
+                                    <b-checkbox v-model="newImageForm.image.verbose_logs" style="color:black">Verbose Logs</b-checkbox>
+                                </b-field>
+                                <b-field>
+                                    <b-checkbox v-model="newImageForm.image.compress" style="color:black">Compress</b-checkbox>
+                                    <b-tooltip label="Compress image after creation (does not apply to raw image)" 
+                                                    type="is-light" 
+                                                    multilined>
+                                        <b-icon  icon="question-circle" style="color:#383838"></b-icon>
+                                    </b-tooltip>
+                                </b-field>
+                                <b-field>
+                                    <b-checkbox v-model="newImageForm.image.ramdisk" style="color:black">Ram / Disk</b-checkbox>
+                                    <b-tooltip label="Create a kernel/initrd pair in addition to a disk image" 
+                                                    type="is-light" 
+                                                    multilined>
+                                        <b-icon  icon="question-circle" style="color:#383838"></b-icon>
+                                    </b-tooltip>                                
+                                </b-field>
+                                <b-field label="Scripts">
+                                    <b-taginput
+                                        v-model="newImageForm.image.script_paths"
+                                        placeholder="Add a script">
+                                    </b-taginput>
+                                </b-field>
+                            </div>
+                        </div>
+                    </b-collapse>
                 </section>
 
                 <footer class="modal-card-foot">
@@ -153,10 +196,33 @@ export default {
             });
         },
         clear_form(){
-
+            this.newImageForm = {
+                name: null,
+                image: {
+                    cache: false,
+                    compress: false,
+                    deb_append: null,
+                    format: null,
+                    include_miniccc: false,
+                    include_protonuke: false,
+                    install_media: null,
+                    mirror: null,
+                    os: null,
+                    overlays: [],
+                    packages: [],
+                    ramdisk: false,
+                    release: null,
+                    script_order: [],
+                    script_paths: [],
+                    scripts: {},
+                    size: null,
+                    variant: null,
+                    verbose_logs: false
+                }
+            }
         },
-        update_defaults() {
-            this.newImageForm.name = ""
+        populate_defaults() {
+            console.log("populating default values")
             this.$http.get(`image/create?os=${this.newImageForm.image.os}`).then(response => {
                 response.json().then(state => {
                     console.log(this.newImageForm.image, state)
@@ -193,14 +259,9 @@ export default {
                 this.createModal.nameErrMsg = null;
             }
 
-            if (this.newImageForm.image.os != "linux" && this.newImageForm.image.os != "windows") {
-                this.createModal.osErrType = 'is-danger';
-                this.createModal.osErrMsg = 'OS must be either linux or windows'
-            } else {
-                this.createModal.osErrType = null;
-                this.createModal.osErrMsg = null;
-            }
-
+            if (this.newImageForm.image.os == null) {
+                return false
+            } 
             return true;
         },
         resetCreateModal(){
