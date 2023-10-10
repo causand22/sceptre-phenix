@@ -2936,11 +2936,13 @@ func ListImage(w http.ResponseWriter, r *http.Request) {
 
 // GET /image/create
 func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
-
 	plog.Debug("HTTP handler called", "handler", "CreateImageDefaults")
 
+	query := r.URL.Query()
+
 	img := &v1.Image{}
-	img.Os = "linux"
+	img.Os = query.Get("os")
+
 	err := image.SetDefaults(img)
 	if err != nil {
 		plog.Error("Setting defaults on empty image", "err", err)
