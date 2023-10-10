@@ -49,6 +49,16 @@
                                 <b-field label="Release">
                                     <b-input type="text" v-model="newImageForm.image.release"></b-input>
                                 </b-field>
+                                <b-field label="Mirror">
+                                    <b-input type="text" v-model="newImageForm.image.mirror"></b-input>
+                                </b-field>
+                                <b-field label="Packages">
+                                    <b-taginput
+                                        v-model="newImageForm.image.packages"
+                                        placeholder="Add a package"
+                                        type="is-light">
+                                    </b-taginput>
+                                </b-field>
                             </div>
                         </div>
                     </b-collapse>
@@ -73,13 +83,7 @@
                             Include Miniccc
                         </b-checkbox>
                     </b-field>
-                    <b-field label="Packages">
-                        <b-taginput
-                            v-model="newImageForm.image.packages"
-                            placeholder="Add a package"
-                            type="is-light">
-                        </b-taginput>
-                    </b-field>
+
 
                     <!-- <b-field label="Scripts">
                         <b-taginput
@@ -130,7 +134,13 @@
                                 <b-field label="Scripts">
                                     <b-taginput
                                         v-model="newImageForm.image.script_paths"
-                                        placeholder="Add a script">
+                                        placeholder="Add a script (include full path)">
+                                    </b-taginput>
+                                </b-field>
+                                <b-field label="Overlays">
+                                    <b-taginput
+                                        v-model="newImageForm.image.overlays"
+                                        placeholder="Add an overlay (include full path)">
                                     </b-taginput>
                                 </b-field>
                             </div>
@@ -253,6 +263,7 @@ export default {
             else if (this.newImageForm.name == "create") {
                 this.createModal.nameErrType = 'is-danger';
                 this.createModal.nameErrMsg = 'experiment names cannot be create!';
+                return false; 
             }
             else {
                 this.createModal.nameErrType = null;
@@ -262,6 +273,11 @@ export default {
             if (this.newImageForm.image.os == null) {
                 return false
             } 
+
+            // const sizeRegex = new RegExp('[0-9]+[M|G]')
+            // if (! sizeRegex.test(this.newImageForm.size)){
+            //     return false 
+            // }
             return true;
         },
         resetCreateModal(){
