@@ -2941,7 +2941,7 @@ func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	img := &v1.Image{}
-	img.Os = query.Get("os")
+	img.Os = v1.Os(query.Get("os"))
 
 	err := image.SetDefaults(img)
 	if err != nil {
