@@ -32,6 +32,7 @@ import (
 	"phenix/util/notes"
 	"phenix/util/plog"
 	"phenix/util/pubsub"
+	"phenix/util/shell"
 	"phenix/web/broker"
 	"phenix/web/cache"
 	"phenix/web/proto"
@@ -3048,4 +3049,20 @@ func BuildImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err_string, http.StatusInternalServerError)
 		return
 	}
+}
+
+// GET /image/edition
+func GetEdition(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	if !shell.CommandExists("vmwin") {
+		http.Error(w, "vmwin not found", http.StatusInternalServerError)
+		return
+	}
+	media := query.Get("media")
+	output, err := exec.Command("vmwin", "--install-image", media, "--get-editions").Output()
+	if err != nil {
+		http.Error(w, "error running vmwin", http.StatusInternalServerError)
+		return
+	}
+	w.Write(output)
 }
