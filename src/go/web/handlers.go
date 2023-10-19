@@ -2921,7 +2921,7 @@ func parseInt(v string, d *int) error {
 	return err
 }
 
-// GET /image/list
+// GET /images
 func ListImage(w http.ResponseWriter, r *http.Request) {
 	plog.Debug("HTTP handler called", "handler", "ListImage")
 	images, err := image.List()
@@ -2934,14 +2934,33 @@ func ListImage(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-// GET /image/create
+// DELETE /images/{name}
+func DeleteImage(w http.ResponseWriter, r *http.Request) {
+	plog.Debug("HTTP handler called", "handler", "DeleteImage")
+
+	var (
+		vars = mux.Vars(r)
+		name = vars["name"]
+	)
+
+	//TODO: check allowed
+	plog.Info("Called http handler delete with arg", name)
+	if err := image.Delete(name); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GET /images/create
 func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
 	plog.Debug("HTTP handler called", "handler", "CreateImageDefaults")
 
 	query := r.URL.Query()
 
 	img := &v1.Image{}
-	img.Os = query.Get("os")
+	img.Os = v1.Os(query.Get("os"))
 
 	err := image.SetDefaults(img)
 	if err != nil {
@@ -2990,7 +3009,7 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req proto.CreateImageRequest
+	var req proto.Image
 
 	if err = unmarshaler.Unmarshal(body, &req); err != nil {
 		plog.Error("unmashaling request body", "err", err)
@@ -3000,25 +3019,25 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: Is there a better way to do this?
 	img := &v1.Image{
-		Variant:          req.Image.Variant,
-		Os:               v1.Os(req.Image.Os),
-		InstallMedia:     req.Image.InstallMedia,
-		Release:          req.Image.Release,
-		Format:           v1.Format(req.Image.Format),
-		Ramdisk:          req.Image.Ramdisk,
-		Compress:         req.Image.Compress,
-		Size:             req.Image.Size,
-		Mirror:           req.Image.Mirror,
-		DebAppend:        req.Image.DebAppend,
-		Packages:         req.Image.Packages,
-		Overlays:         req.Image.Overlays,
-		Scripts:          req.Image.Scripts,
-		ScriptOrder:      req.Image.ScriptOrder,
-		IncludeMiniccc:   req.Image.IncludeMiniccc,
-		IncludeProtonuke: req.Image.IncludeProtonuke,
-		Cache:            req.Image.Cache,
-		ScriptPaths:      req.Image.ScriptPaths,
-		VerboseLogs:      req.Image.VerboseLogs,
+		Variant:          req.Variant,
+		Os:               v1.Os(req.Os),
+		InstallMedia:     req.InstallMedia,
+		Release:          req.Release,
+		Format:           v1.Format(req.Format),
+		Ramdisk:          req.Ramdisk,
+		Compress:         req.Compress,
+		Size:             req.Size,
+		Mirror:           req.Mirror,
+		DebAppend:        req.DebAppend,
+		Packages:         req.Packages,
+		Overlays:         req.Overlays,
+		Scripts:          req.Scripts,
+		ScriptOrder:      req.ScriptOrder,
+		IncludeMiniccc:   req.IncludeMiniccc,
+		IncludeProtonuke: req.IncludeProtonuke,
+		Cache:            req.Cache,
+		ScriptPaths:      req.ScriptPaths,
+		VerboseLogs:      req.VerboseLogs,
 	}
 
 	err = image.Create(req.Name, img)

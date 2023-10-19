@@ -409,6 +409,7 @@
         this.$http.get( 'experiments' ).then(
           response => {
             response.json().then( state => {
+              console.log(state)
               this.experiments = state.experiments;
               this.isWaiting = false;
             });

@@ -52,6 +52,9 @@
                                 <b-field label="Mirror">
                                     <b-input type="text" v-model="newImageForm.image.mirror"></b-input>
                                 </b-field>
+                                <b-field label="Install Media">
+                                    <b-input type="text" v-model="newImageForm.image.install_media"></b-input>
+                                </b-field>
                                 <b-field label="Packages">
                                     <b-taginput
                                         v-model="newImageForm.image.packages"
@@ -62,7 +65,27 @@
                             </div>
                         </div>
                     </b-collapse>
-
+                    <b-collapse class="card" animation="slide" :open="false" v-if="newImageForm.image.os == 'windows'">
+                        <template #trigger="props">
+                            <div class="card-header" role="button">
+                                <p class="card-header-title">Windows Options</p>
+                                <a class="card-header-icon">
+                                <b-icon type="is-dark" size="is-small" :icon="props.open ? 'chevron-down' : 'chevron-up'">
+                                </b-icon>
+                                </a>
+                            </div>
+                        </template>
+                        <div class="card-content">
+                            <div class="content">
+                                <b-field label="Install Media ISO">
+                                    <b-input type="text" v-model="newImageForm.image.install_media"></b-input>
+                                </b-field>
+                                <b-field label="Edition">
+                                    <b-input type="text" v-model="newImageForm.image.release"></b-input>
+                                </b-field>
+                            </div>
+                        </div>
+                    </b-collapse>
 
 
                     <b-field label="Format">
@@ -79,7 +102,8 @@
                         </b-checkbox>
                     </b-field>
                     <b-field>
-                        <b-checkbox v-model="newImageForm.image.include_miniccc" style="color:black">
+                        <b-checkbox v-model="newImageForm.image.include_miniccc"
+                        style="color:black">
                             Include Miniccc
                         </b-checkbox>
                     </b-field>
@@ -87,7 +111,7 @@
 
                     <!-- <b-field label="Scripts">
                         <b-taginput
-                            v-model="newImageForm.image.scripts"
+                            v-model="newImageForm.scripts"
                             placeholder="Add a package"
                             type="is-info">
                         </b-taginput>
@@ -170,41 +194,139 @@
             </div>
         </section>
         </template>
-        <hr>
-        Welcome to the image builder page!
-        <div id="test-div">
-            <button @click="get_image_list()">Test GET /image/list</button>
-            <br>
-            <button @click="show_modal()">Show Modal</button>
-        </div>
-        <b-loading :is-full-page="true" :active.sync="isWaiting" :can-cancel="false"></b-loading>
+        <template v-else>
+            <hr>
+            <b-field position="is-right">
+                <b-autocomplete v-model="searchName"
+                                placeholder="Find an image config"
+                                icon="search"
+                                :data="filteredData"
+                                @select="option => filtered = option">
+                    <template slot="empty">
+                        No results found
+                    </template>
+                </b-autocomplete>
+                <p class='control'>
+                    <button class='button' style="color:#686868" @click="searchName = ''">
+                        <b-icon icon="window-close"></b-icon>
+                    </button>
+                </p>
+                &nbsp; &nbsp;
+                <b-tooltip label="create a new image config" type="is-light" multilined>
+                    <button class="button is-light" @click="updateImages(); createModal.active = true">
+                    <b-icon icon="plus"></b-icon>
+                    </button>
+                </b-tooltip>
+            </b-field>
+            <div style="margin-top: -1em;">
+                <b-table
+                    :data="filteredImages">
+                    <template slot="empty">
+                        <section class="section">
+                        <div class="content has-text-white has-text-centered">
+                            Your search turned up empty!
+                        </div>
+                        </section>
+                    </template>
+                    <b-table-column field="name" label="Name" width="200" sortable v-slot="props">
+                        {{ props.row.name }}
+                    </b-table-column>
+                    <b-table-column field="updated" label="Last Updated" width="200" sortable v-slot="props">
+                        {{ props.row.updated }}
+                    </b-table-column>
+                    <b-table-column field="size" label="Size" width="200" sortable v-slot="props">
+                        {{ props.row.size }}
+                    </b-table-column>
+                    <b-table-column field="os" label="Os" width="200" sortable v-slot="props">
+                        {{ props.row.os }}
+                    </b-table-column>
+                    <b-table-column field="format" label="Format" width="200" sortable v-slot="props">
+                        {{ props.row.format }}
+                    </b-table-column>
+                    <b-table-column label="Actions" width="150" centered v-slot="props">
+                        <b-tooltip label="Build" type="is-light">
+                            <button
+                                class="button is-light is-small action"
+                                :disabled="updating( props.row.status )"
+                                @click="build(props.row.name)">
+                                Build
+                            </button>
+                        </b-tooltip>
+                        <b-tooltip label="Edit" type="is-light">
+                            <button
+                                class="button is-light is-small action"
+                                :disabled="updating( props.row.status )"
+                                @click="edit(props.row.name)">
+                            <b-icon icon="edit"></b-icon>
+                            </button>
+                        </b-tooltip>
+                        <b-tooltip label="Delete" type="is-light">
+                            <button 
+                                class="button is-light is-small action" 
+                                :disabled="updating( props.row.status )" 
+                                @click="del(props.row.name)">
+                            <b-icon icon="trash"></b-icon>
+                            </button>
+                        </b-tooltip>
+
+
+
+                    </b-table-column>
+                </b-table>
+            </div>
+        </template>
+        <button @click="updateImages">Click to update images</button>
     </div>
 </template>
 
 <script>
+//   import EventBus from '@/event-bus'
 
 export default {
-    beforeDestroy() {
+    mounted () {
+        // EventBus.$on( 'page-reload', ( route ) => {
+        //     if (route.name == 'imagebuilder'){
+        //         this.updateImages();
+        //     }
+        // })
+    },
+    async beforeDestroy() {
         clearInterval(this.update);
     },
-    created() {
-        console.log("Created");
-        this.isWaiting = false;
+    async created() {
+        // this.isWaiting = false;
         // this.images = [];
         this.clear_form();
+        this.updateImages();
+    },
+    computed: {
+        filteredImages: function() {
+            let images = this.images;
+
+            var name_regx = new RegExp( this.searchName, 'i');
+            var data = [];
+
+            for (let i in images) {
+                let img = images[i];
+                if (img.name.match( name_regx )) {
+                    data.push(img);
+                }
+            }
+            return data;
+        },
+        filteredData() {
+            let names = this.images.map (img => {return img.name;});
+            return names.filter(
+                option => {
+                    return option
+                        .toString()
+                        .toLowerCase()
+                        .indexOf( this.searchName.toLowerCase() ) >= 0
+                }
+            )
+        }
     },
     methods: {
-        get_image_list() {
-            this.$http.get(`image/list`).then(response => {
-                response.json().then(state => {
-                    console.log(state);
-                    this.images = state;
-                });
-            }, err => {
-                console.log("Error found", err);
-                this.errorNotification(err);
-            });
-        },
         clear_form(){
             this.newImageForm = {
                 name: null,
@@ -232,11 +354,28 @@ export default {
             }
         },
         populate_defaults() {
-            console.log("populating default values")
+            // console.log("populating default values")
             this.$http.get(`image/create?os=${this.newImageForm.image.os}`).then(response => {
                 response.json().then(state => {
-                    console.log(this.newImageForm.image, state)
-                    this.newImageForm.image = state
+                    // console.log("Log 1", this.newImageForm, state)
+
+                    function isEmpty(value){
+                        return (
+                            value == null ||
+                            (typeof value == 'string' && value.length === 0) ||
+                            value == []
+                        )
+                    }
+                    for (const [key, value] of Object.entries(state)) {
+                        if (!isEmpty(value)) {
+                            // console.log(key)
+                            this.newImageForm.image[key] = value
+                            // console.log(key, this.newImageForm.image[key], value)
+                        }
+                    }
+                    // console.log(this.newImageForm, state)
+
+                    // this.newImageForm = state
                 });
             }, err => {
                 console.error(err);
@@ -285,9 +424,13 @@ export default {
         
         },
         create(){ 
-            console.log(this.newImageForm)
+            // console.log(this.newImageForm)
             this.isWaiting = true;
-            this.$http.post('image/create', this.newImageForm, { timeout: 0 } 
+
+            let form = this.newImageForm.image
+            form.name = this.newImageForm.name
+
+            this.$http.post('image/create', form, { timeout: 0 } 
                 ).then(
                 _ => {          
                     console.log("Request sumbitted correctly")  
@@ -299,15 +442,92 @@ export default {
                 );
             this.createModal.active = false;
             this.resetCreateModal()
+            this.updateImages()
+        },
+        updateImages(){
+            this.images = []
+            function convertToImage(image) {
+
+                var imageObj = {
+                    name: image.Metadata.name,
+                    size: image.Spec.size,
+                    os: image.Spec.os,
+                    format: image.Spec.format,
+                    status: "stopped",
+                    updated: image.Metadata.updated
+                }
+                return imageObj
+            }
+
+            this.$http.get('images').then(
+                response => {
+                    response.json().then( state => {
+                        // console.log(state)
+                        for (const [key, value] of Object.entries(state)) {
+                            // console.log(key, value)
+                            this.images.push(convertToImage(value))
+                        }
+
+                    })
+                }
+            )
+        },
+        updating: function( status ) {
+            return status == "starting" || status === "stopping";
+        },
+        del (name ) {
+            this.$buefy.dialog.confirm({
+                title: 'Delete the image configuration',
+                message: 'This will DELETE the ' + name + 'experiment. Are you sure you want to do this?',
+                cancelText: 'Cancel',
+                confirmText: 'Delete',
+                type: 'is-danger',
+                hasIcon: true,
+                onConfirm: () => {
+                    this.isWaiting = true;
+                    console.log("Delete image ")
+                    this.$http.delete(
+                        'images/' + name
+                    ).then(
+                        response => {
+                            if (response.status == 204) {
+                                let img = this.images;
+                                for (let i = 0; i < img.length; i ++){
+                                    if (img[i].name == name) {
+                                        img.splice(i, 1);
+                                        break;
+                                    }
+                                }
+
+                                this.images = [ ...img ];
+                            }
+                            this.isWaiting = false; 
+                        }, err => {
+                            this.errorNotification(err);
+                            this.isWaiting = false;
+                        }
+                    )
+                }
+
+            })
+        },
+        build(name){
+            console.log("Building image:", name)
+            console.error("Implement function build")
+        },
+        edit(name){
+            console.log("Editing image:", name)
+            console.error("Implement function edit")
         }
 
     },
-    computed: {},
     data() {
         return {
             defaults: {},
             images: [],
             isWaiting: true,
+            searchName: '',
+            filtered: null,
             createModal: {
                 active: false,
                 name: null,
@@ -320,28 +540,57 @@ export default {
             newImageForm: {
                 name: null,
                 image: {
-                    cache: false,
-                    compress: false,
                     deb_append: null,
                     format: null,
-                    include_miniccc: false,
-                    include_protonuke: false,
                     install_media: null,
                     mirror: null,
                     os: null,
-                    overlays: [],
-                    packages: [],
-                    ramdisk: false,
                     release: null,
-                    script_order: [],
-                    script_paths: [],
-                    scripts: {},
                     size: null,
                     variant: null,
-                    verbose_logs: false
+
+
+                    //list flags
+                    overlays: [],
+                    packages: [],
+                    script_order: [],
+                    script_paths: [],
+
+
+                    //boolean flags
+                    cache: false,
+                    compress: false,
+                    include_miniccc: false,
+                    include_protonuke: false,
+                    ramdisk: false,
+                    verbose_logs: false,
+                    
+
+                    //don't actually change
+                    scripts: {},
                 }
+
+                
             }
         };
     }
 }
 </script>
+<style scoped>
+    div.autocomplete >>> a.dropdown-item {
+        color: #383838 !important;
+    }
+
+    button.action {
+        margin-right: 5px;
+    }
+
+    a.action {
+        margin-right: 5px;
+    }
+
+    p.card-header-title {
+        margin: 0;
+    }
+
+</style>

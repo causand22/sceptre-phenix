@@ -351,18 +351,8 @@ func newImageDeleteCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 
-			if name == "" {
-				return fmt.Errorf("The name of the configuration to delete is required")
-			}
+			return image.Delete(name)
 
-			if err := config.Delete("image/" + name); err != nil {
-				err := util.HumanizeError(err, "Unable to delete the "+name+" image")
-				return err.Humanized()
-			}
-
-			fmt.Printf("The configuration for the %s image was deleted\n", name)
-
-			return nil
 		},
 	}
 

@@ -13,10 +13,12 @@ import (
 	"path"
 	"strings"
 
+	"phenix/api/config"
 	"phenix/store"
 	"phenix/tmpl"
 	"phenix/types"
 	v1 "phenix/types/version/v1"
+	"phenix/util"
 	"phenix/util/mm/mmcli"
 	"phenix/util/notes"
 	"phenix/util/shell"
@@ -243,7 +245,7 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 
 		img.Cache = cache
 
-		if img.Os == "linux" {
+		if img.Os == v1.Os_linux {
 			// The Kali package repos use `kali-rolling` as the release name.
 			if img.Release == "kali" {
 				img.Release = "kali-rolling"
@@ -257,9 +259,9 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 		}
 	}
 	var script string
-	if img.Os == "linux" {
+	if img.Os == v1.Os_linux {
 		script = "vmdb2"
-	} else if img.Os == "windows" {
+	} else if img.Os == v1.Os_windows {
 		script = "vmwin"
 	}
 	if !dryrun && !shell.CommandExists(script) {
@@ -271,7 +273,7 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 		"--rootfs-tarball", output + "/" + name + ".tar",
 	}
 
-	if img.Os == "windows" {
+	if img.Os == v1.Os_windows {
 		winargs := []string{
 			"--install-image", img.InstallMedia,
 			"--edition", img.Edition,
@@ -705,6 +707,21 @@ func inject(disk string, injects ...string) error {
 	if err := mmcli.ErrorResponse(mmcli.Run(cmd)); err != nil {
 		return fmt.Errorf("injecting files into disk %s: %w", disk, err)
 	}
+
+	return nil
+}
+
+func Delete(name string) error {
+
+	if name == "" {
+		return fmt.Errorf("The name of the configuration to delete is required")
+	}
+
+	if err := config.Delete("image/" + name); err != nil {
+		err := util.HumanizeError(err, "Unable to delete the "+name+" image")
+		return err.Humanized()
+	}
+	fmt.Printf("The configuration for the %s image was deleted\n", name)
 
 	return nil
 }
