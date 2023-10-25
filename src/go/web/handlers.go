@@ -2925,14 +2925,47 @@ func parseInt(v string, d *int) error {
 // GET /images
 func ListImage(w http.ResponseWriter, r *http.Request) {
 	plog.Debug("HTTP handler called", "handler", "ListImage")
+
+	var (
+		ctx  = r.Context()
+		role = ctx.Value("role").(rbac.Role)
+	)
+
+	if !role.Allowed("images", "list") {
+		plog.Warn("listing images not allowed", "user", ctx.Value("user").(string))
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	images, err := image.List()
 	if err != nil {
 		err_string := fmt.Sprintf("failed to list images: %v", err)
 		http.Error(w, err_string, http.StatusInternalServerError)
 		return
 	}
-	body, _ := json.Marshal(images)
+
+	allowed := []*proto.Image{}
+	for _, img := range images {
+		if !role.Allowed("images", "list", img.Metadata.Name) {
+			continue
+		}
+
+		pbuf_img := util.ImageToProtobuf((*v1.Image)(img.Spec))
+		pbuf_img.Name = img.Metadata.Name
+		allowed = append(allowed, pbuf_img)
+	}
+
+	body, err := marshaler.Marshal(&proto.ImageList{Images: allowed})
+	if err != nil {
+		plog.Error("marshaling images", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
 	w.Write(body)
+
+	// body, _ := json.Marshal(images)
+	// w.Write(body)
 }
 
 // DELETE /images/{name}
@@ -2940,18 +2973,32 @@ func DeleteImage(w http.ResponseWriter, r *http.Request) {
 	plog.Debug("HTTP handler called", "handler", "DeleteImage")
 
 	var (
+		ctx  = r.Context()
+		role = ctx.Value("role").(rbac.Role)
 		vars = mux.Vars(r)
 		name = vars["name"]
 	)
 
-	//TODO: check allowed
-	plog.Info("Called http handler delete with arg", name)
+	if !role.Allowed("images", "delete", name) {
+		err := weberror.NewWebError(nil, "deleting image %s not allowed for %s", name, ctx.Value("user").(string))
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	plog.Info("Called http handler delete with arg", "name", name)
 	if err := image.Delete(name); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+
+	broker.Broadcast(
+		bt.NewRequestPolicy("images", "delete", name),
+		bt.NewResource("images", name, "delete"),
+		nil,
+	)
+
 }
 
 // GET /images/create
@@ -2969,27 +3016,8 @@ func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	body, err := marshaler.Marshal(&proto.Image{
-		Variant:          img.Variant,
-		Os:               string(img.Os),
-		InstallMedia:     img.InstallMedia,
-		Release:          img.Release,
-		Format:           string(img.Format),
-		Ramdisk:          img.Ramdisk,
-		Compress:         img.Compress,
-		Size:             img.Size,
-		Mirror:           img.Mirror,
-		DebAppend:        img.DebAppend,
-		Packages:         img.Packages,
-		Overlays:         img.Overlays,
-		Scripts:          img.Scripts,
-		ScriptOrder:      img.ScriptOrder,
-		IncludeMiniccc:   img.IncludeMiniccc,
-		IncludeProtonuke: img.IncludeProtonuke,
-		Cache:            img.Cache,
-		ScriptPaths:      img.ScriptPaths,
-		VerboseLogs:      img.VerboseLogs,
-	})
+
+	body, err := marshaler.Marshal(util.ImageToProtobuf(img))
 	if err != nil {
 		plog.Error("marshaling image", "err", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -3055,19 +3083,40 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 // POST /image/build
 // TODO: implement protobuf query reading
 func BuildImage(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
 	ctx := context.Background()
-	name := query.Get("name")
-	verbosity := 0
-	cache := true
-	dryrun := false
-	output := query.Get("output")
-	err := image.Build(ctx, name, verbosity, cache, dryrun, output)
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		plog.Error("reading request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	var req proto.BuildImageRequest
+
+	if err = unmarshaler.Unmarshal(body, &req); err != nil {
+		plog.Error("unmashaling request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	go func() {
+		ctx = context.Background()
+		err = image.Build(ctx,
+			req.Name,
+			int(req.Verbosity),
+			req.Cache,
+			true, //dryrun
+			req.Output)
+	}()
+
 	if err != nil {
 		err_string := fmt.Sprintf("building image failed: %v", err)
 		http.Error(w, err_string, http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusAccepted)
 }
 
 // GET /image/edition

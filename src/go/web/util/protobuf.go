@@ -3,6 +3,7 @@ package util
 import (
 	"phenix/types"
 	ifaces "phenix/types/interfaces"
+	v1 "phenix/types/version/v1"
 	"phenix/util/mm"
 	"phenix/web/cache"
 	"phenix/web/proto"
@@ -208,4 +209,30 @@ func RoleToProtobuf(r rbac.Role) *proto.Role {
 	}
 
 	return role
+}
+
+func ImageToProtobuf(img *v1.Image) *proto.Image {
+	protoImg := &proto.Image{
+		Variant:          img.Variant,
+		Os:               string(img.Os),
+		InstallMedia:     img.InstallMedia,
+		Release:          img.Release,
+		Format:           string(img.Format),
+		Ramdisk:          img.Ramdisk,
+		Compress:         img.Compress,
+		Size:             img.Size,
+		Mirror:           img.Mirror,
+		DebAppend:        img.DebAppend,
+		Packages:         img.Packages,
+		Overlays:         img.Overlays,
+		Scripts:          img.Scripts,
+		ScriptOrder:      img.ScriptOrder,
+		IncludeMiniccc:   img.IncludeMiniccc,
+		IncludeProtonuke: img.IncludeProtonuke,
+		Cache:            img.Cache,
+		ScriptPaths:      img.ScriptPaths,
+		VerboseLogs:      img.VerboseLogs,
+	}
+
+	return protoImg
 }

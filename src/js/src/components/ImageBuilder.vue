@@ -1,10 +1,11 @@
 
 <template>
     <div class="content">
+        <!-- CREATE \ UPDATE MODAL -->
         <b-modal :active.sync="createModal.active" :on-cancel="resetCreateModal" has-modal-card>
             <div class="modal-card" style="width:40em">
                 <header class="modal-card-head">
-                    <p class="modal-card-title">Create a New Image</p>
+                    <p class="modal-card-title">Create a New Image Configuration</p>
                 </header>
                 <section class="modal-card-body">
 
@@ -26,7 +27,7 @@
                                 </b-select>
                             </div>
                             <div class="level-right">
-                                <button class="button is-light" @click="populate_defaults()">Populate Defaults</button>
+                                <button class="button is-light" @click="populate_os_defaults()">Populate Defaults</button>
                             </div>
                         </div>
                     </b-field>
@@ -81,7 +82,7 @@
                                     <b-input type="text" v-model="newImageForm.image.install_media"></b-input>
                                 </b-field>
                                 <b-field label="Edition">
-                                    <b-input type="text" v-model="newImageForm.image.release"></b-input>
+                                    <b-input type="text" v-model="newImageForm.image.release" disabled></b-input>
                                 </b-field>
                             </div>
                         </div>
@@ -173,8 +174,68 @@
                 </section>
 
                 <footer class="modal-card-foot">
-                    <button class="button is-danger mr-auto" @click="clear_form">Reset Form</button>
-                    <button class="button is-light" :disabled="!validate()" @click="create">Create Image</button>
+                    <button class="button is-danger mr-auto" @click="clear_create_form">Reset Form</button>
+                    <button class="button is-light" 
+                        :disabled="!validateCreateImage()" 
+                        @click="create">Create Image Config</button>
+                </footer>
+                <!-- <footer v-else class="modal-card-foot buttons is-right">
+                    <button class="button is-light" 
+                        @click="edit">Edit Image Config</button>
+                </footer> -->
+            </div>
+        </b-modal>
+
+        <!-- BUILD MODAL -->
+        <b-modal :active.sync="buildModal.active" :on-cancel="resetBuildModal" has-modal-card>
+            <div class="modal-card" style="width:40em">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">Build an Image</p>
+                </header>
+                <section class="modal-card-body">
+
+                    <b-field label="Config Name">
+                        <b-select v-model="buildModal.name">
+                            <option v-for="( img, index ) in images" :key="index" :value="img.name">
+                                {{ img.name }}
+                            </option>
+                        </b-select>
+                    </b-field>
+
+                    <b-field label="Output Directory">
+                        <b-input type="text" v-model="buildModal.output"></b-input>
+                    </b-field>
+
+                    <b-field>
+                        <b-checkbox v-model="buildModal.cache" style="color:black">Cache</b-checkbox>
+                        <b-tooltip label="Cache rootfs as tar image" 
+                                        type="is-light" 
+                                        multilined>
+                            <b-icon  icon="question-circle" style="color:#383838"></b-icon>
+                        </b-tooltip>
+                    </b-field>
+                    <b-field>
+                        <b-checkbox v-model="buildModal.dryrun" style="color:black">Dry Run</b-checkbox>
+                        <b-tooltip label="Do everything but call out to vmdb2" 
+                                        type="is-light" 
+                                        multilined>
+                            <b-icon  icon="question-circle" style="color:#383838"></b-icon>
+                        </b-tooltip>
+                    </b-field>
+
+                    <b-field label="Verbosity">
+                        <b-select v-model="buildModal.verbosity">
+                            <option value="0">No verbose logs</option>
+                            <option value="1">Enable verbose logs</option>
+                            <option value="2">Enable very verbose logs</option>
+                            <option value="4">Enable extra verbose logs</option>
+
+                        </b-select>
+                    </b-field>
+                </section>
+
+                <footer class="modal-card-foot buttons is-right">
+                    <button class="button is-light" @click="build">Build Image</button>
                 </footer>
             </div>
         </b-modal>
@@ -183,19 +244,21 @@
         <section class="hero is-light is-bold is-large">
             <div class="hero-body">
             <div class="container" style="text-align: center">
-                <!-- <h1 class="title">
-                There are no experiments!
-                </h1> -->
+                <h1 class="title">
+                There are no image configurations!
+                </h1>
                 <!-- #TODO: add role allowed-->
-                <b-button type="is-success" outlined @click="createModal.active = true">
-                    Create An Image
+                <b-button type="is-success" outlined @click="show_create_modal( 'create' )">
+                    Create An Image Configuration
                 </b-button>
             </div>
             </div>
         </section>
         </template>
+        <!-- configuration table -->
         <template v-else>
             <hr>
+            <!-- Top search bar / + button -->
             <b-field position="is-right">
                 <b-autocomplete v-model="searchName"
                                 placeholder="Find an image config"
@@ -213,11 +276,12 @@
                 </p>
                 &nbsp; &nbsp;
                 <b-tooltip label="create a new image config" type="is-light" multilined>
-                    <button class="button is-light" @click="updateImages(); createModal.active = true">
+                    <button class="button is-light" @click="updateImages(); show_create_modal('create')">
                     <b-icon icon="plus"></b-icon>
                     </button>
                 </b-tooltip>
             </b-field>
+            <!-- table -->
             <div style="margin-top: -1em;">
                 <b-table
                     :data="filteredImages">
@@ -231,14 +295,14 @@
                     <b-table-column field="name" label="Name" width="200" sortable v-slot="props">
                         {{ props.row.name }}
                     </b-table-column>
-                    <b-table-column field="updated" label="Last Updated" width="200" sortable v-slot="props">
-                        {{ props.row.updated }}
-                    </b-table-column>
                     <b-table-column field="size" label="Size" width="200" sortable v-slot="props">
                         {{ props.row.size }}
                     </b-table-column>
                     <b-table-column field="os" label="Os" width="200" sortable v-slot="props">
                         {{ props.row.os }}
+                    </b-table-column>
+                    <b-table-column field="variant" label="Variant" width="200" sortable v-slot="props">
+                        {{ props.row.variant }}
                     </b-table-column>
                     <b-table-column field="format" label="Format" width="200" sortable v-slot="props">
                         {{ props.row.format }}
@@ -246,36 +310,33 @@
                     <b-table-column label="Actions" width="150" centered v-slot="props">
                         <b-tooltip label="Build" type="is-light">
                             <button
-                                class="button is-light is-small action"
+                                class="button is-primary is-small action"
                                 :disabled="updating( props.row.status )"
-                                @click="build(props.row.name)">
-                                Build
+                                @click="activateBuildModal(props.row.name)">
+                                BUILD
                             </button>
                         </b-tooltip>
-                        <b-tooltip label="Edit" type="is-light">
+                        <!-- <b-tooltip label="Edit" type="is-light">
                             <button
                                 class="button is-light is-small action"
                                 :disabled="updating( props.row.status )"
                                 @click="edit(props.row.name)">
                             <b-icon icon="edit"></b-icon>
                             </button>
-                        </b-tooltip>
+                        </b-tooltip> -->
                         <b-tooltip label="Delete" type="is-light">
                             <button 
                                 class="button is-light is-small action" 
                                 :disabled="updating( props.row.status )" 
-                                @click="del(props.row.name)">
+                                @click="delete_config(props.row.name)">
                             <b-icon icon="trash"></b-icon>
                             </button>
                         </b-tooltip>
-
-
 
                     </b-table-column>
                 </b-table>
             </div>
         </template>
-        <button @click="updateImages">Click to update images</button>
     </div>
 </template>
 
@@ -296,7 +357,7 @@ export default {
     async created() {
         // this.isWaiting = false;
         // this.images = [];
-        this.clear_form();
+        this.clear_create_form();
         this.updateImages();
     },
     computed: {
@@ -326,8 +387,32 @@ export default {
             )
         }
     },
+
     methods: {
-        clear_form(){
+        // General page functions
+        updateImages(){
+            this.$http.get('images').then(
+                response => {
+                    response.json().then( state => {
+                        this.images = state.images
+                    })
+                }
+            )
+        },
+
+        show_create_modal(type){
+            // if (type === "edit"){
+            //     this.createModal.type = "edit"
+            //     this.createModal.active = true 
+            // } else {
+                this.createModal.type = "create"
+                this.createModal.active = true 
+            // }
+
+        },
+
+        //Create / Edit modal functionality 
+        clear_create_form(){
             this.newImageForm = {
                 name: null,
                 image: {
@@ -353,39 +438,31 @@ export default {
                 }
             }
         },
-        populate_defaults() {
-            // console.log("populating default values")
+        populate_os_defaults() {
+            console.log("populating default values")
             this.$http.get(`image/create?os=${this.newImageForm.image.os}`).then(response => {
                 response.json().then(state => {
-                    // console.log("Log 1", this.newImageForm, state)
-
-                    function isEmpty(value){
-                        return (
-                            value == null ||
-                            (typeof value == 'string' && value.length === 0) ||
-                            value == []
-                        )
-                    }
-                    for (const [key, value] of Object.entries(state)) {
-                        if (!isEmpty(value)) {
-                            // console.log(key)
-                            this.newImageForm.image[key] = value
-                            // console.log(key, this.newImageForm.image[key], value)
-                        }
-                    }
-                    // console.log(this.newImageForm, state)
-
-                    // this.newImageForm = state
+                    this.update_create_form(state);
                 });
             }, err => {
                 console.error(err);
             });
         },
-
-        show_modal() {
-            this.createModal.active = true;
+        update_create_form(updateObject){
+            function isEmpty(value){
+                return (
+                    value == null ||
+                    (typeof value == 'string' && value.length === 0) ||
+                    value == []
+                )
+            }
+            for (const [key, value] of Object.entries(updateObject)) {
+                if (!isEmpty(value)) {
+                    this.newImageForm.image[key] = value
+                }
+            }
         },
-        validate() {
+        validateCreateImage() {
             if (!this.newImageForm.name) {
                 return false;
             }
@@ -420,11 +497,10 @@ export default {
             return true;
         },
         resetCreateModal(){
-            this.clear_form();
-        
+            this.clear_create_form();
         },
+
         create(){ 
-            // console.log(this.newImageForm)
             this.isWaiting = true;
 
             let form = this.newImageForm.image
@@ -433,7 +509,7 @@ export default {
             this.$http.post('image/create', form, { timeout: 0 } 
                 ).then(
                 _ => {          
-                    console.log("Request sumbitted correctly")  
+                    console.log("Create Image Request sumbitted correctly")  
                     this.isWaiting = false;
                 }, err => {
                     this.errorNotification(err);
@@ -444,48 +520,35 @@ export default {
             this.resetCreateModal()
             this.updateImages()
         },
-        updateImages(){
-            this.images = []
-            function convertToImage(image) {
 
-                var imageObj = {
-                    name: image.Metadata.name,
-                    size: image.Spec.size,
-                    os: image.Spec.os,
-                    format: image.Spec.format,
-                    status: "stopped",
-                    updated: image.Metadata.updated
-                }
-                return imageObj
-            }
+        // edit(name){
+        //     console.log("Editing image:", name)
 
-            this.$http.get('images').then(
-                response => {
-                    response.json().then( state => {
-                        // console.log(state)
-                        for (const [key, value] of Object.entries(state)) {
-                            // console.log(key, value)
-                            this.images.push(convertToImage(value))
-                        }
+        //     let image = this.images.filter((img) => img.name === name)
+        //     if (image.length > 0) {
+        //         console.log(image[0])
+        //         this.update_create_form(image[0])
+        //         this.newImageForm.name = image[0].name
+        //         this.show_create_modal("edit")
 
-                    })
-                }
-            )
-        },
+        //     }
+
+        // },
+
         updating: function( status ) {
             return status == "starting" || status === "stopping";
         },
-        del (name ) {
+        delete_config(name ) {
             this.$buefy.dialog.confirm({
                 title: 'Delete the image configuration',
-                message: 'This will DELETE the ' + name + 'experiment. Are you sure you want to do this?',
+                message: 'This will DELETE the ' + name + ' experiment. Are you sure you want to do this?',
                 cancelText: 'Cancel',
                 confirmText: 'Delete',
                 type: 'is-danger',
                 hasIcon: true,
                 onConfirm: () => {
                     this.isWaiting = true;
-                    console.log("Delete image ")
+                    console.log("Delete image", name)
                     this.$http.delete(
                         'images/' + name
                     ).then(
@@ -508,17 +571,52 @@ export default {
                         }
                     )
                 }
-
             })
         },
-        build(name){
-            console.log("Building image:", name)
-            console.error("Implement function build")
+        //Build Modal / build functions 
+        activateBuildModal(name){
+            this.resetBuildModal()
+            this.buildModal.name = name 
+            this.buildModal.active = true 
         },
-        edit(name){
-            console.log("Editing image:", name)
-            console.error("Implement function edit")
-        }
+        resetBuildModal(){
+            this.buildModal = {
+                active: false,
+                cache: false,
+                dryrun: false,
+                output: null,
+                verbosity: 0,
+                name: null,
+            }
+        },
+        build(){
+            this.isWaiting = true; 
+
+            console.log(this.buildModal)
+
+            let buildRequest = {
+                name: this.buildModal.name,
+                verbosity: this.buildModal.verbosity,
+                cache: this.buildModal.cache,
+                dryrun: this.buildModal.dryrun,
+                output: this.buildModal.output,
+            }
+            this.$http.post('image/build', buildRequest, { timeout: 0 } 
+                ).then(
+                _ => {          
+                    console.log("Build request sumbitted correctly")  
+                    this.isWaiting = false;
+                }, err => {
+                    this.errorNotification(err);
+                    this.isWaiting = false;
+                }
+                );
+
+            this.buildModal.active = false;
+            this.resetBuildModal()
+            this.updateImages()
+        },
+
 
     },
     data() {
@@ -531,11 +629,20 @@ export default {
             createModal: {
                 active: false,
                 name: null,
+                type: null,
                 nameErrType: null,
                 nameErrMsg: null,
                 osErrType: null,
                 osErrMsg: null,
                 tempPackage: null,
+            },
+            buildModal: {
+                active: false,
+                cache: false,
+                dryrun: false,
+                output: null,
+                verbosity: 0,
+                name: null
             },
             newImageForm: {
                 name: null,

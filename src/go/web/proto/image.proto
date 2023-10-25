@@ -27,6 +27,12 @@ message Image {
     repeated string script_paths = 19 [json_name="script_paths"];
 
     bool verbose_logs = 20 [json_name='verbose_logs'];
+
+}
+
+message ImageList {
+
+    repeated Image images = 1;
 }
 
 message BuildImageRequest {
