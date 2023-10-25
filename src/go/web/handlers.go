@@ -3083,6 +3083,8 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 // POST /image/build
 // TODO: implement protobuf query reading
 func BuildImage(w http.ResponseWriter, r *http.Request) {
+	plog.Debug("HTTP handler called", "handler", "BuildImage")
+
 	ctx := context.Background()
 
 	body, err := io.ReadAll(r.Body)
@@ -3106,8 +3108,11 @@ func BuildImage(w http.ResponseWriter, r *http.Request) {
 			req.Name,
 			int(req.Verbosity),
 			req.Cache,
-			true, //dryrun
+			req.Dryrun, //dryrun
 			req.Output)
+		if err != nil {
+			plog.Error(fmt.Sprintf("Error running build: %v", err))
+		}
 	}()
 
 	if err != nil {
