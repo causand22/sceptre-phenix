@@ -276,7 +276,7 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 	if img.Os == v1.Os_windows {
 		winargs := []string{
 			"--install-image", img.InstallMedia,
-			"--edition", img.Edition,
+			"--edition", fmt.Sprintf("\"%s\"", img.Edition),
 		}
 		args = append(args, winargs...)
 	} else {
