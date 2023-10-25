@@ -21,7 +21,6 @@ import (
 	"phenix/util"
 	"phenix/util/mm/mmcli"
 	"phenix/util/notes"
-	"phenix/util/plog"
 	"phenix/util/shell"
 
 	"github.com/activeshadow/structs"
@@ -298,10 +297,7 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 	if dryrun {
 		fmt.Printf("DRY RUN: %s %s\n", script, strings.Join(args, " "))
 	} else {
-		plog.Info("TEST MESSAGE 1 BUIDL", "script", script)
-
 		cmd := exec.Command(script, args...)
-		plog.Info("TEST MESSAGE 2 BUIDL")
 
 		stdout, _ := cmd.StdoutPipe()
 		stderr, _ := cmd.StderrPipe()
@@ -323,8 +319,6 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 				fmt.Println(scanner.Text())
 			}
 		}()
-
-		plog.Info("TEST MESSAGE BUIDL")
 
 		if err := cmd.Wait(); err != nil {
 			return fmt.Errorf("building image with %s: %w", script, err)
