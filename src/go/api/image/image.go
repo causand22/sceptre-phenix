@@ -270,7 +270,6 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 
 	args := []string{
 		"--output", output + "/" + name,
-		"--rootfs-tarball", output + "/" + name + ".tar",
 	}
 
 	if img.Os == v1.Os_windows {
@@ -282,16 +281,16 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 	} else {
 		linuxargs := []string{
 			filename,
+			"--rootfs-tarball", output + "/" + name + ".tar",
 		}
 		args = append(linuxargs, args...)
-	}
+		if verbosity >= V_VERBOSE {
+			args = append(args, "-v")
+		}
 
-	if verbosity >= V_VERBOSE {
-		args = append(args, "-v")
-	}
-
-	if verbosity >= V_VVERBOSE {
-		args = append(args, "--log", "stderr")
+		if verbosity >= V_VVERBOSE {
+			args = append(args, "--log", "stderr")
+		}
 	}
 
 	if dryrun {
