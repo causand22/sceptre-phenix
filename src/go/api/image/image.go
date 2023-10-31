@@ -284,6 +284,10 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 			"--size", img.Size,
 		}
 		args = append(args, winargs...)
+		if len(img.ScriptOrder) > 0 {
+			args = append(args, "--scripts")
+			args = append(args, img.ScriptOrder...)
+		}
 	} else {
 		linuxargs := []string{
 			filename,
