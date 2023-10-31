@@ -112,14 +112,19 @@ func SetDefaults(img *v1.Image) error {
 			return fmt.Errorf("variant %s is not implemented", img.Variant)
 		}
 		img.Packages = append(img.Packages, PACKAGES_DEFAULT...)
+		if img.Size == "" {
+			img.Size = "5G"
+		}
+		if img.Format == "" {
+			img.Format = "raw"
+		}
 	}
-
-	if img.Size == "" {
-		img.Size = "5G"
-	}
-
-	if img.Format == "" {
-		img.Format = "raw"
+	if img.Os == v1.Os_windows {
+		img.InstallMedia = "/scratch/iso/en-us_windows_11_business_editions_version_22h2_updated_aug_2023_x64_dvd_03c6b773.iso"
+		img.Edition = "Windows 11 Enterprise"
+		img.Size = "50G"
+		img.Format = "qcow2"
+		img.IncludeMiniccc = true
 	}
 
 	if len(img.ScriptPaths) > 0 {
@@ -276,6 +281,7 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 		winargs := []string{
 			"--install-image", img.InstallMedia,
 			"--edition", fmt.Sprintf("\"%s\"", img.Edition),
+			"--size", img.Size
 		}
 		args = append(args, winargs...)
 	} else {
