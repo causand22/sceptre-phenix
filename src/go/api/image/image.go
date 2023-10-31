@@ -281,7 +281,7 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 		winargs := []string{
 			"--install-image", img.InstallMedia,
 			"--edition", fmt.Sprintf("\"%s\"", img.Edition),
-			"--size", img.Size
+			"--size", img.Size,
 		}
 		args = append(args, winargs...)
 	} else {
