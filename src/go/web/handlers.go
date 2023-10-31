@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"phenix/app"
 	"phenix/store"
 	v1 "phenix/types/version/v1"
+	"phenix/util/common"
 	"phenix/util/mm"
 	"phenix/util/notes"
 	"phenix/util/plog"
@@ -3053,6 +3055,7 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 		InstallMedia:     req.InstallMedia,
 		Release:          req.Release,
 		Format:           v1.Format(req.Format),
+		Edition:          req.Edition,
 		Ramdisk:          req.Ramdisk,
 		Compress:         req.Compress,
 		Size:             req.Size,
@@ -3104,6 +3107,12 @@ func BuildImage(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		ctx = context.Background()
+
+		/*
+			TODO: idea -- create a channel with this id ->
+
+			have a separate GET request that checks if the process has finished
+		*/
 		err = image.Build(ctx,
 			req.Name,
 			int(req.Verbosity),
@@ -3126,16 +3135,52 @@ func BuildImage(w http.ResponseWriter, r *http.Request) {
 
 // GET /image/edition
 func GetEdition(w http.ResponseWriter, r *http.Request) {
+	plog.Info("HTTP handler called", "handler", "GetEdition")
+
 	query := r.URL.Query()
 	if !shell.CommandExists("vmwin") {
 		http.Error(w, "vmwin not found", http.StatusInternalServerError)
 		return
 	}
+
 	media := query.Get("media")
+
 	output, err := exec.Command("vmwin", "--install-image", media, "--get-editions").Output()
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, "error running vmwin", http.StatusInternalServerError)
 		return
 	}
-	w.Write(output)
+
+	var res proto.Editions
+
+	trimmedOutput := strings.TrimSuffix(string(output), "\n")
+	res.Editions = strings.Split(trimmedOutput, "\n")
+
+	body, err := marshaler.Marshal(&res)
+	if err != nil {
+		plog.Error("marshaling edition", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(body)
+}
+
+func TestHandler(w http.ResponseWriter, r *http.Request) {
+	plog.Info("HTTP handler called", "handler", "test")
+
+	imagePath := path.Join(common.PhenixBase, "images")
+
+	fmt.Println(imagePath)
+	dir, err := os.ReadDir(imagePath)
+	if err != nil {
+		plog.Error("%v", err)
+	}
+
+	for _, entry := range dir {
+		fmt.Println(entry.Name())
+	}
+
+	fmt.Fprintf(w, "test")
 }

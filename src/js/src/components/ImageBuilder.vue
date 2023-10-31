@@ -18,21 +18,18 @@
 
                     <b-field label="OS"
                         :type="createModal.osErrType"
-                        :message="createModal.osErrMsg">
-                        <div class="level">
-                            <div class="level-left">
-                                <b-select placeholder="Select an OS" v-model="newImageForm.image.os">
-                                    <option value="linux">Linux</option>
-                                    <option value="windows">Windows</option>
-                                </b-select>
-                            </div>
-                            <div class="level-right">
-                                <button class="button is-light" @click="populate_os_defaults()">Populate Defaults</button>
-                            </div>
-                        </div>
-                    </b-field>
+                        :message="createModal.osErrMsg" grouped>
 
-                    <b-collapse class="card" animation="slide" :open="false" v-if="newImageForm.image.os == 'linux'">
+                        <b-select placeholder="Select an OS" v-model="newImageForm.os">
+                            <option value="linux">Linux</option>
+                            <option value="windows">Windows</option>
+                        </b-select>
+                        <p class="control">
+                            <button class="button is-light" @click="populate_os_defaults()">Populate OS Defaults</button>
+                        </p>
+                    </b-field>
+                    <!-- Linux Options modal-->
+                    <b-collapse class="card" animation="slide" :open="false" v-if="newImageForm.os == 'linux'">
                         <template #trigger="props">
                             <div class="card-header" role="button">
                                 <p class="card-header-title">Linux Options</p>
@@ -45,20 +42,20 @@
                         <div class="card-content">
                             <div class="content">
                                 <b-field label="Variant">
-                                    <b-input type="text" v-model="newImageForm.image.variant"></b-input>
+                                    <b-input type="text" v-model="newImageForm.variant"></b-input>
                                 </b-field>
                                 <b-field label="Release">
-                                    <b-input type="text" v-model="newImageForm.image.release"></b-input>
+                                    <b-input type="text" v-model="newImageForm.release"></b-input>
                                 </b-field>
                                 <b-field label="Mirror">
-                                    <b-input type="text" v-model="newImageForm.image.mirror"></b-input>
+                                    <b-input type="text" v-model="newImageForm.mirror"></b-input>
                                 </b-field>
                                 <b-field label="Install Media">
-                                    <b-input type="text" v-model="newImageForm.image.install_media"></b-input>
+                                    <b-input type="text" v-model="newImageForm.install_media"></b-input>
                                 </b-field>
                                 <b-field label="Packages">
                                     <b-taginput
-                                        v-model="newImageForm.image.packages"
+                                        v-model="newImageForm.packages"
                                         placeholder="Add a package"
                                         type="is-light">
                                     </b-taginput>
@@ -66,7 +63,8 @@
                             </div>
                         </div>
                     </b-collapse>
-                    <b-collapse class="card" animation="slide" :open="false" v-if="newImageForm.image.os == 'windows'">
+                    <!-- Windows modal options -->
+                    <b-collapse class="card" animation="slide" :open="false" v-if="newImageForm.os == 'windows'">
                         <template #trigger="props">
                             <div class="card-header" role="button">
                                 <p class="card-header-title">Windows Options</p>
@@ -78,11 +76,31 @@
                         </template>
                         <div class="card-content">
                             <div class="content">
-                                <b-field label="Install Media ISO">
-                                    <b-input type="text" v-model="newImageForm.image.install_media"></b-input>
+
+
+                                <b-field label="Install Media ISO" 
+                                    :type="createModal.winISOErrType"
+                                    :message="createModal.winISOErrError"
+                                    grouped>
+                                    <b-input type="text" v-model="newImageForm.install_media"></b-input>
+                                    <p class="control">
+                                        <b-button class="button is-light" 
+                                            @click="populate_windows_edition">Update Edition from ISO</b-button>
+                                    </p>
                                 </b-field>
-                                <b-field label="Edition">
-                                    <b-input type="text" v-model="newImageForm.image.release" disabled></b-input>
+                                <b-field label="Edition"
+                                    :type="createModal.winEditionErrType" 
+                                    :message="createModal.winEditionErrError">
+                                    <b-select placeholder="select an install media..."
+                                        :disabled="!validSelectWindowsEdition()"
+                                        v-model="newImageForm.edition">
+                                        <option v-for="( name, index ) in createModal.winEditionOptions" 
+                                        :key="index" 
+                                        :value="name"
+                                        >
+                                            {{ name }}
+                                        </option>                                    
+                                    </b-select>
                                 </b-field>
                             </div>
                         </div>
@@ -90,20 +108,25 @@
 
 
                     <b-field label="Format">
-                        <b-input type="text" v-model="newImageForm.image.format"></b-input>
+                        <!-- <b-input type="text" v-model="newImageForm.format"></b-input> -->
+                        <b-select placeholder="Select an image format type" v-model="newImageForm.format">
+                            <option value="qcow2">.qcow2</option>
+                            <option value="raw">.raw</option>
+                        </b-select>
                     </b-field>
+
                     <b-field label="Size">
-                        <b-input type="text" v-model="newImageForm.image.size"></b-input>
+                        <b-input type="text" v-model="newImageForm.size"></b-input>
                     </b-field>
 
 
                     <b-field>
-                        <b-checkbox v-model="newImageForm.image.include_protonuke" style="color:black">
+                        <b-checkbox v-model="newImageForm.include_protonuke" style="color:black">
                             Include Protonuke
                         </b-checkbox>
                     </b-field>
                     <b-field>
-                        <b-checkbox v-model="newImageForm.image.include_miniccc"
+                        <b-checkbox v-model="newImageForm.include_miniccc"
                         style="color:black">
                             Include Miniccc
                         </b-checkbox>
@@ -130,7 +153,7 @@
                         <div class="card-content">
                             <div class="content">
                                 <b-field label="Debootstrap Append">
-                                    <b-input type="textarea" v-model="newImageForm.image.deb_append"></b-input>
+                                    <b-input type="textarea" v-model="newImageForm.deb_append"></b-input>
                                     <!-- <b-tooltip label="Additional arguments to debootstrap"
                                         type="is-light"
                                         multilined>
@@ -138,10 +161,10 @@
                                     </b-tooltip> -->
                                 </b-field>
                                 <b-field>
-                                    <b-checkbox v-model="newImageForm.image.verbose_logs" style="color:black">Verbose Logs</b-checkbox>
+                                    <b-checkbox v-model="newImageForm.verbose_logs" style="color:black">Verbose Logs</b-checkbox>
                                 </b-field>
                                 <b-field>
-                                    <b-checkbox v-model="newImageForm.image.compress" style="color:black">Compress</b-checkbox>
+                                    <b-checkbox v-model="newImageForm.compress" style="color:black">Compress</b-checkbox>
                                     <b-tooltip label="Compress image after creation (does not apply to raw image)" 
                                                     type="is-light" 
                                                     multilined>
@@ -149,7 +172,7 @@
                                     </b-tooltip>
                                 </b-field>
                                 <b-field>
-                                    <b-checkbox v-model="newImageForm.image.ramdisk" style="color:black">Ram / Disk</b-checkbox>
+                                    <b-checkbox v-model="newImageForm.ramdisk" style="color:black">Ram / Disk</b-checkbox>
                                     <b-tooltip label="Create a kernel/initrd pair in addition to a disk image" 
                                                     type="is-light" 
                                                     multilined>
@@ -158,13 +181,13 @@
                                 </b-field>
                                 <b-field label="Scripts">
                                     <b-taginput
-                                        v-model="newImageForm.image.script_paths"
+                                        v-model="newImageForm.script_paths"
                                         placeholder="Add a script (include full path)">
                                     </b-taginput>
                                 </b-field>
                                 <b-field label="Overlays">
                                     <b-taginput
-                                        v-model="newImageForm.image.overlays"
+                                        v-model="newImageForm.overlays"
                                         placeholder="Add an overlay (include full path)">
                                     </b-taginput>
                                 </b-field>
@@ -248,7 +271,7 @@
                 There are no image configurations!
                 </h1>
                 <!-- #TODO: add role allowed-->
-                <b-button type="is-success" outlined @click="show_create_modal( 'create' )">
+                <b-button type="is-success" outlined @click="show_create_modal()">
                     Create An Image Configuration
                 </b-button>
             </div>
@@ -275,8 +298,12 @@
                     </button>
                 </p>
                 &nbsp; &nbsp;
-                <b-tooltip label="create a new image config" type="is-light" multilined>
-                    <button class="button is-light" @click="updateImages(); show_create_modal('create')">
+                <b-tooltip 
+                    v-if="roleAllowed('image', 'create')"
+                    label="create a new image config" 
+                    type="is-light" 
+                    multilined>
+                    <button class="button is-light" @click="updateImages(); show_create_modal()">
                     <b-icon icon="plus"></b-icon>
                     </button>
                 </b-tooltip>
@@ -299,16 +326,24 @@
                         {{ props.row.size }}
                     </b-table-column>
                     <b-table-column field="os" label="Os" width="200" sortable v-slot="props">
+                        <!-- {{ props.row.os === 'linux' ? 
+                            props.row.os + ' - ' + props.row.release : 
+                            props.row.os }} -->
                         {{ props.row.os }}
                     </b-table-column>
-                    <b-table-column field="variant" label="Variant" width="200" sortable v-slot="props">
-                        {{ props.row.variant }}
+                    <b-table-column field="release" label="Release" width="200" sortable v-slot="props">
+                        {{ props.row.os === 'linux' ?
+                            props.row.release :
+                            props.row.edition }}
                     </b-table-column>
                     <b-table-column field="format" label="Format" width="200" sortable v-slot="props">
                         {{ props.row.format }}
                     </b-table-column>
                     <b-table-column label="Actions" width="150" centered v-slot="props">
-                        <b-tooltip label="Build" type="is-light">
+                        <b-tooltip 
+                            v-if="roleAllowed('image', 'build')"
+                            label="Build" 
+                            type="is-light">
                             <button
                                 class="button is-primary is-small action"
                                 :disabled="updating( props.row.status )"
@@ -326,6 +361,7 @@
                         </b-tooltip> -->
                         <b-tooltip label="Delete" type="is-light">
                             <button 
+                                v-if="roleAllowed('images', 'delete', props.row.name)"
                                 class="button is-light is-small action" 
                                 :disabled="updating( props.row.status )" 
                                 @click="delete_config(props.row.name)">
@@ -337,6 +373,7 @@
                 </b-table>
             </div>
         </template>
+        <button @click="testMethod">Test</button>
     </div>
 </template>
 
@@ -385,80 +422,90 @@ export default {
                         .indexOf( this.searchName.toLowerCase() ) >= 0
                 }
             )
-        }
+        },
+
     },
 
     methods: {
-        // General page functions
-        updateImages(){
-            this.$http.get('images').then(
+        testMethod(){
+            console.log("Sending test")
+            this.$http.get("image/test").then(
                 response => {
-                    response.json().then( state => {
-                        this.images = state.images
+                    response.json().then( state=>{
+                        console.log(state)
                     })
                 }
             )
         },
+        // General page functions
+        updateImages(){
+            this.isWaiting = true
+            this.$http.get('images').then(
+                response => {
+                    response.json().then( state => {
+                        console.log(state.images)
+                        this.images = state.images
+                        for (let i = 0; i < this.images.length; i ++){
+                            if (this.images[i].os == '') {
+                                this.images[i].os = 'linux'
+                            }
+                        }
+                    })
+                }
+            )
+            this.isWaiting = false
+        },
 
-        show_create_modal(type){
-            // if (type === "edit"){
-            //     this.createModal.type = "edit"
-            //     this.createModal.active = true 
-            // } else {
-                this.createModal.type = "create"
-                this.createModal.active = true 
-            // }
-
+        show_create_modal(){
+        this.createModal.type = "create"
+        this.createModal.active = true 
         },
 
         //Create / Edit modal functionality 
         clear_create_form(){
             this.newImageForm = {
                 name: null,
-                image: {
-                    cache: false,
-                    compress: false,
-                    deb_append: null,
-                    format: null,
-                    include_miniccc: false,
-                    include_protonuke: false,
-                    install_media: null,
-                    mirror: null,
-                    os: null,
-                    overlays: [],
-                    packages: [],
-                    ramdisk: false,
-                    release: null,
-                    script_order: [],
-                    script_paths: [],
-                    scripts: {},
-                    size: null,
-                    variant: null,
-                    verbose_logs: false
-                }
+                cache: false,
+                compress: false,
+                deb_append: null,
+                edition: null,
+                format: null,
+                include_miniccc: false,
+                include_protonuke: false,
+                install_media: null,
+                mirror: null,
+                os: null,
+                overlays: [],
+                packages: [],
+                ramdisk: false,
+                release: null,
+                script_order: [],
+                script_paths: [],
+                scripts: {},
+                size: null,
+                variant: null,
+                verbose_logs: false
+                
             }
         },
         populate_os_defaults() {
             console.log("populating default values")
-            this.$http.get(`image/create?os=${this.newImageForm.image.os}`).then(response => {
+            this.$http.get(`image/create?os=${this.newImageForm.os}`).then(response => {
                 response.json().then(state => {
                     this.update_create_form(state);
+                    this.newImageForm.format = "qcow2"
+
                 });
+
             }, err => {
                 console.error(err);
             });
+
         },
         update_create_form(updateObject){
-            function isEmpty(value){
-                return (
-                    value == null ||
-                    (typeof value == 'string' && value.length === 0) ||
-                    value == []
-                )
-            }
             for (const [key, value] of Object.entries(updateObject)) {
-                if (!isEmpty(value)) {
-                    this.newImageForm.image[key] = value
+                if (!this.isEmpty(value)) {
+                    this.newImageForm[key] = value
                 }
             }
         },
@@ -486,16 +533,46 @@ export default {
                 this.createModal.nameErrMsg = null;
             }
 
-            if (this.newImageForm.image.os == null) {
+            if (this.newImageForm.os == null) {
                 return false
             } 
 
-            // const sizeRegex = new RegExp('[0-9]+[M|G]')
-            // if (! sizeRegex.test(this.newImageForm.size)){
-            //     return false 
-            // }
+            if (this.validSelectWindowsEdition == false) {
+                return false 
+            }
+
+            const sizeRegex = new RegExp('[0-9]+[KMG]')
+            if (! sizeRegex.test(this.newImageForm.size)){
+                return false 
+            }
             return true;
         },
+
+        validSelectWindowsEdition(){
+            //skip if not using windows
+            if (this.isEmpty(this.newImageForm.os) || this.newImageForm.os === 'linux') {
+                console.log("False")
+                return true;
+            }
+            if (this.isEmpty(this.newImageForm.install_media)){
+                this.createModal.winISOErrType='is-danger'
+                this.createModal.winISOErrError='Choose an installation file'
+                return false;
+            }
+
+            if (this.createModal.enteredWinISO != this.newImageForm.install_media) {
+                this.createModal.winEditionErrType = 'is-danger'
+                this.createModal.winEditionErrError = 'ISO has changed since selecting an edition!'
+                return false;
+            }
+            if (this.createModal.winEditionOptions.length == 0) {
+                return false;
+            }
+            this.createModal.winEditionErrError = null;
+            this.createModal.winEditionErrType = null;
+            return true;
+        },
+
         resetCreateModal(){
             this.clear_create_form();
         },
@@ -503,8 +580,7 @@ export default {
         create(){ 
             this.isWaiting = true;
 
-            let form = this.newImageForm.image
-            form.name = this.newImageForm.name
+            let form = this.newImageForm
 
             this.$http.post('image/create', form, { timeout: 0 } 
                 ).then(
@@ -521,19 +597,25 @@ export default {
             this.updateImages()
         },
 
-        // edit(name){
-        //     console.log("Editing image:", name)
+        populate_windows_edition(){
+            console.log(this.newImageForm.install_media)
+            this.$http.get(`image/edition?media=${this.newImageForm.install_media}`).then(response => {
+                // console.log(response)
+                response.json().then(state => {
+                    // console.log(state);
+                    this.createModal.winISOErrType = null,
+                    this.createModal.winISOErrError = null,
+                    this.createModal.winEditionOptions = state.editions
 
-        //     let image = this.images.filter((img) => img.name === name)
-        //     if (image.length > 0) {
-        //         console.log(image[0])
-        //         this.update_create_form(image[0])
-        //         this.newImageForm.name = image[0].name
-        //         this.show_create_modal("edit")
+                    this.createModal.enteredWinISO = this.newImageForm.install_media
 
-        //     }
-
-        // },
+                });
+            }, err => {
+                this.createModal.winISOErrType = 'is-danger',
+                this.createModal.winISOErrError = 'invalid ISO path provided.',
+                console.error(err);
+            });        
+        },
 
         updating: function( status ) {
             return status == "starting" || status === "stopping";
@@ -616,7 +698,13 @@ export default {
             this.resetBuildModal()
             this.updateImages()
         },
-
+        isEmpty(value){
+            return (
+                value == null ||
+                (typeof value == 'string' && value.length === 0) ||
+                value == []
+            )
+        }
 
     },
     data() {
@@ -635,6 +723,15 @@ export default {
                 osErrType: null,
                 osErrMsg: null,
                 tempPackage: null,
+
+                winISOErrType: null,
+                winISOErrError: null,
+
+                enteredWinISO: null,
+                winEditionOptions: null,
+
+                winEditionErrType: null,
+                winEditionErrError: null
             },
             buildModal: {
                 active: false,
@@ -642,41 +739,41 @@ export default {
                 dryrun: false,
                 output: null,
                 verbosity: 0,
-                name: null
+                name: null,
+
             },
             newImageForm: {
                 name: null,
-                image: {
-                    deb_append: null,
-                    format: null,
-                    install_media: null,
-                    mirror: null,
-                    os: null,
-                    release: null,
-                    size: null,
-                    variant: null,
+                deb_append: null,
+                format: null,
+                install_media: null,
+                mirror: null,
+                os: null,
+                release: null,
+                edition: null,
+                size: null,
+                variant: null,
 
 
-                    //list flags
-                    overlays: [],
-                    packages: [],
-                    script_order: [],
-                    script_paths: [],
+                //list flags
+                overlays: [],
+                packages: [],
+                script_order: [],
+                script_paths: [],
 
 
-                    //boolean flags
-                    cache: false,
-                    compress: false,
-                    include_miniccc: false,
-                    include_protonuke: false,
-                    ramdisk: false,
-                    verbose_logs: false,
-                    
+                //boolean flags
+                cache: false,
+                compress: false,
+                include_miniccc: false,
+                include_protonuke: false,
+                ramdisk: false,
+                verbose_logs: false,
+                
 
-                    //don't actually change
-                    scripts: {},
-                }
-
+                //don't actually change
+                scripts: {},
+                
                 
             }
         };

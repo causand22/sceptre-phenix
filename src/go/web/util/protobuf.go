@@ -218,6 +218,7 @@ func ImageToProtobuf(img *v1.Image) *proto.Image {
 		InstallMedia:     img.InstallMedia,
 		Release:          img.Release,
 		Format:           string(img.Format),
+		Edition:          img.Edition,
 		Ramdisk:          img.Ramdisk,
 		Compress:         img.Compress,
 		Size:             img.Size,

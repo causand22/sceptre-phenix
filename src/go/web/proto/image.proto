@@ -9,6 +9,7 @@ message Image {
     string os = 3;
     string install_media = 4 [json_name="install_media"];
     string release = 5;
+    string edition = 21;
     string format = 6;
     bool ramdisk = 7;
     bool compress = 8;
@@ -33,6 +34,7 @@ message Image {
 message ImageList {
 
     repeated Image images = 1;
+    
 }
 
 message BuildImageRequest {
@@ -41,4 +43,8 @@ message BuildImageRequest {
     bool cache = 3;
     bool dryrun = 4;
     string output = 5;
+}
+
+message Editions {
+    repeated string editions = 1;
 }
