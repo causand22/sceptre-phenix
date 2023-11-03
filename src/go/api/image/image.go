@@ -120,10 +120,18 @@ func SetDefaults(img *v1.Image) error {
 		}
 	}
 	if img.Os == v1.Os_windows {
-		img.InstallMedia = "/scratch/iso/en-us_windows_11_business_editions_version_22h2_updated_aug_2023_x64_dvd_03c6b773.iso"
-		img.Edition = "Windows 11 Enterprise"
-		img.Size = "50G"
-		img.Format = "qcow2"
+		if img.InstallMedia = "" {
+			img.InstallMedia = "/scratch/iso/en-us_windows_11_business_editions_version_22h2_updated_aug_2023_x64_dvd_03c6b773.iso"
+		}
+		if img.Edition = "" {
+			img.Edition = "Windows 11 Enterprise"
+		}
+		if img.Size = "" {
+			img.Size = "50G"
+		}
+		if img.Format = "" {
+			img.Format = "qcow2"
+		}
 		img.IncludeMiniccc = true
 	}
 
@@ -288,6 +296,9 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 			args = append(args, "--scripts")
 			args = append(args, img.ScriptOrder...)
 		}
+		if img.IncludeMiniccc {
+			args = append(args, "--miniccc")
+		}
 	} else {
 		linuxargs := []string{
 			filename,
@@ -300,6 +311,9 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 
 		if verbosity >= V_VVERBOSE {
 			args = append(args, "--log", "stderr")
+		}
+		if img.IncludeMiniccc {
+			notes.AddWarnings(ctx, false, fmt.Errorf("inject_miniccc setting is DEPRECATED - use 'image inject-miniexe' subcommand after image is built"))
 		}
 	}
 
@@ -333,9 +347,7 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 			return fmt.Errorf("building image with %s: %w", script, err)
 		}
 
-		if img.IncludeMiniccc {
-			notes.AddWarnings(ctx, false, fmt.Errorf("inject_miniccc setting is DEPRECATED - use 'image inject-miniexe' subcommand after image is built"))
-		}
+
 
 		if img.IncludeProtonuke {
 			notes.AddWarnings(ctx, false, fmt.Errorf("inject_protonuke setting is DEPRECATED - use 'image inject-miniexe' subcommand after image is built"))
