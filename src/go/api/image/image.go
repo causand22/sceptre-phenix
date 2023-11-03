@@ -120,16 +120,16 @@ func SetDefaults(img *v1.Image) error {
 		}
 	}
 	if img.Os == v1.Os_windows {
-		if img.InstallMedia = "" {
+		if img.InstallMedia == "" {
 			img.InstallMedia = "/scratch/iso/en-us_windows_11_business_editions_version_22h2_updated_aug_2023_x64_dvd_03c6b773.iso"
 		}
-		if img.Edition = "" {
+		if img.Edition == "" {
 			img.Edition = "Windows 11 Enterprise"
 		}
-		if img.Size = "" {
+		if img.Size == "" {
 			img.Size = "50G"
 		}
-		if img.Format = "" {
+		if img.Format == "" {
 			img.Format = "qcow2"
 		}
 		img.IncludeMiniccc = true
