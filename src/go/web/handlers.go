@@ -2959,7 +2959,7 @@ func ListImage(w http.ResponseWriter, r *http.Request) {
 		if !role.Allowed("images", "list", img.Metadata.Name) {
 			continue
 		}
-		fmt.Println("name", img.Metadata.Name, " created by:", img.GetCreatedBy())
+		// fmt.Println("name", img.Metadata.Name, " created by:", img.GetCreatedBy())
 		//conditions for not showing config (user not root + not global + not created by user /root)
 		createdby := img.GetCreatedBy()
 		if createdby != "" && username != "" {

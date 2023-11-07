@@ -834,40 +834,19 @@ export default {
                             console.log("Reset request sumbitted correctly")  
                             this.isWaiting = false;
 
-                            message = "Image " + this.buildModal.name + " has been reset"
+                            let message = "Image " + name + " status has been reset"
                             this.showInfoNotification(message)
-                            this.updateImages()
+                            this.updateImages();
 
                         }, err => {
                             this.errorNotification(err);
                             this.isWaiting = false;
+                            this.updateImages();
                         }
                     );
                 }
             })
 
-
-
-            let resetRequest = {
-                name: name 
-            }
-
-            this.$http.post('image/reset', resetRequest, { timeout: 0 } 
-                ).then(
-                _ => {          
-                    console.log("Reset request sumbitted correctly")  
-                    this.isWaiting = false;
-
-                    message = "Image " + this.buildModal.name + " has been reset"
-                    this.showInfoNotification(message)
-                    this.updateImages()
-
-                }, err => {
-                    this.errorNotification(err);
-                    this.isWaiting = false;
-                }
-                );
-            this.updateImages();
         }
 
     },
