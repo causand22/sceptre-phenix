@@ -320,6 +320,16 @@
                     <b-icon icon="plus"></b-icon>
                     </button>
                 </b-tooltip>
+                &nbsp; &nbsp;
+                <b-tooltip 
+                    v-if="roleAllowed('image', 'list')"
+                    label="refresh the image list" 
+                    type="is-light" 
+                    multilined>
+                    <button class="button is-light" @click="updateImages()">
+                    <b-icon icon="redo"></b-icon>
+                    </button>
+                </b-tooltip>
             </b-field>
             <!-- table -->
             <div style="margin-top: -1em;">
@@ -340,7 +350,7 @@
                             :label="getStatusTooltipLabel( props.row.status )" 
                             type="is-light">
                             <button :class="getStatusButtonClassType(props.row.status)">
-                                    {{ getDisplayStatusName( props.row.status ) }}
+                                    {{ props.row.status }}
                             </button>
                         </b-tooltip>
                     </b-table-column>
@@ -787,12 +797,6 @@ export default {
                 return "button is-small"
             }
         },
-        getDisplayStatusName(status){
-            if (status == 'DEFAULT') {
-                return 'CREATED'
-            }
-            return status
-        },
         getStatusTooltipLabel(status){
             if (status == 'ERROR') {
                 return "Image build failed"
@@ -808,6 +812,42 @@ export default {
         },
 
         resetImageConfigStatus(name){
+
+            this.$buefy.dialog.confirm({
+                title: 'Reset the image config status',
+                message: "Only reset a config if it is stuck in the BUILDING phase for longer than an hour or in the ERROR phase. This may cause undefined behvaior if the BUILDING phase is ongoing.",
+                cancelText: 'Cancel',
+                confirmText: 'Reset',
+                type: 'is-danger',
+                hasIcon: true,
+                onConfirm: () => {
+                    this.isWaiting = true;
+                    console.log("Reset image config", name)
+
+                    let resetRequest = {
+                        name: name 
+                    }
+
+                    this.$http.post('image/reset', resetRequest, { timeout: 0 } 
+                        ).then(
+                        _ => {          
+                            console.log("Reset request sumbitted correctly")  
+                            this.isWaiting = false;
+
+                            message = "Image " + this.buildModal.name + " has been reset"
+                            this.showInfoNotification(message)
+                            this.updateImages()
+
+                        }, err => {
+                            this.errorNotification(err);
+                            this.isWaiting = false;
+                        }
+                    );
+                }
+            })
+
+
+
             let resetRequest = {
                 name: name 
             }

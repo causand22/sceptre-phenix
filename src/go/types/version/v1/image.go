@@ -105,7 +105,7 @@ func (this *ImageStatus) GetStatus(username string) string {
 		this.Init()
 	}
 	if _, ok := this.UserToStatus[username]; !ok {
-		this.UserToStatus[username] = "DEFAULT"
+		this.UserToStatus[username] = "PREBUILD"
 	}
 	return this.UserToStatus[username]
 }

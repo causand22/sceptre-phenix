@@ -162,7 +162,7 @@ func Create(name string, img *v1.Image, user string) error {
 
 	var status v1.ImageStatus
 	status.Init()
-	status.SetStatus(user, "CREATED")
+	status.SetStatus(user, "PREBUILD")
 
 	c := store.Config{
 		Version: "phenix.sandia.gov/v1",
@@ -363,8 +363,6 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 		if err := cmd.Wait(); err != nil {
 			return fmt.Errorf("building image with %s: %w", script, err)
 		}
-
-
 
 		if img.IncludeProtonuke {
 			notes.AddWarnings(ctx, false, fmt.Errorf("inject_protonuke setting is DEPRECATED - use 'image inject-miniexe' subcommand after image is built"))
