@@ -799,7 +799,7 @@ export default {
         },
         getStatusTooltipLabel(status){
             if (status == 'ERROR') {
-                return "Image build failed"
+                return "Image build failed. Check logs for more details"
             } else if (status == 'EDITED') {
                 return "Image has been edited since last build"
             } else if (status == 'BUILT') {

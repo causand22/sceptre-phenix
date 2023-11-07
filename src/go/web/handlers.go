@@ -3201,7 +3201,7 @@ func ResetImageStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = image.ChangeStatus(req.Name, username, "DEFAULT")
+	err = image.ChangeStatus(req.Name, username, "PREBUILD")
 	if err != nil {
 		plog.Error("changing config", "err", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
