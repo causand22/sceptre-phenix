@@ -9,7 +9,6 @@ message Image {
     string os = 3;
     string install_media = 4 [json_name="install_media"];
     string release = 5;
-    string edition = 21;
     string format = 6;
     bool ramdisk = 7;
     bool compress = 8;
@@ -29,6 +28,10 @@ message Image {
 
     bool verbose_logs = 20 [json_name='verbose_logs'];
 
+    string edition = 21;
+
+    string status = 22;
+    bool global = 23;
 }
 
 message ImageList {
@@ -47,4 +50,8 @@ message BuildImageRequest {
 
 message Editions {
     repeated string editions = 1;
+}
+
+message ResetImageRequest {
+    string name = 1;
 }

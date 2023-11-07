@@ -148,7 +148,7 @@ func newImageCreateCmd() *cobra.Command {
 				img.Release = ""
 			}
 
-			if err := image.Create(name, &img); err != nil {
+			if err := image.Create(name, &img, ""); err != nil {
 				err := util.HumanizeError(err, "Unable to create the "+name+" image")
 				return err.Humanized()
 			}
@@ -320,7 +320,7 @@ func newImageBuildCmd() *cobra.Command {
 
 			ctx := notes.Context(context.Background(), false)
 
-			if err := image.Build(ctx, name, verbosity, cache, dryrun, output); err != nil {
+			if err := image.Build(ctx, name, verbosity, cache, dryrun, output, ""); err != nil {
 				err := util.HumanizeError(err, "Unable to build the "+name+" image")
 				return err.Humanized()
 			}

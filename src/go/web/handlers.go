@@ -2933,6 +2933,14 @@ func ListImage(w http.ResponseWriter, r *http.Request) {
 		role = ctx.Value("role").(rbac.Role)
 	)
 
+	var username string
+	user := ctx.Value("user")
+	if user != nil {
+		username = user.(string)
+	} else {
+		username = ""
+	}
+
 	if !role.Allowed("images", "list") {
 		plog.Warn("listing images not allowed", "user", ctx.Value("user").(string))
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -2951,9 +2959,20 @@ func ListImage(w http.ResponseWriter, r *http.Request) {
 		if !role.Allowed("images", "list", img.Metadata.Name) {
 			continue
 		}
+		fmt.Println("name", img.Metadata.Name, " created by:", img.GetCreatedBy())
+		//conditions for not showing config (user not root + not global + not created by user /root)
+		createdby := img.GetCreatedBy()
+		if createdby != "" && username != "" {
+			//if private config not created by username, don't show
+			if img.Spec.Global == false && img.GetCreatedBy() != username {
+				continue
+			}
+		}
 
 		pbuf_img := util.ImageToProtobuf((*v1.Image)(img.Spec))
 		pbuf_img.Name = img.Metadata.Name
+		pbuf_img.Status = img.Status.GetStatus(username)
+
 		allowed = append(allowed, pbuf_img)
 	}
 
@@ -3048,6 +3067,16 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var username string
+	user := r.Context().Value("user")
+	if user != nil {
+		username = user.(string)
+	} else {
+		username = ""
+	}
+
+	fmt.Println("Creating image", req.Name, "from user", username)
+
 	//TODO: Is there a better way to do this?
 	img := &v1.Image{
 		Variant:          req.Variant,
@@ -3070,9 +3099,10 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 		Cache:            req.Cache,
 		ScriptPaths:      req.ScriptPaths,
 		VerboseLogs:      req.VerboseLogs,
+		Global:           req.Global,
 	}
 
-	err = image.Create(req.Name, img)
+	err = image.Create(req.Name, img, username)
 
 	if err != nil {
 		err_string := fmt.Sprintf("creating image failed: %v", err)
@@ -3088,7 +3118,13 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 func BuildImage(w http.ResponseWriter, r *http.Request) {
 	plog.Debug("HTTP handler called", "handler", "BuildImage")
 
-	ctx := context.Background()
+	var username string
+	user := r.Context().Value("user")
+	if user != nil {
+		username = user.(string)
+	} else {
+		username = ""
+	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -3105,21 +3141,26 @@ func BuildImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/*
+		Make output directory
+	*/
+
+	output_dir := path.Join(common.PhenixBase, "images", username)
+	os.MkdirAll(output_dir, 755)
+
 	go func() {
-		ctx = context.Background()
+		ctx := context.Background()
 
-		/*
-			TODO: idea -- create a channel with this id ->
-
-			have a separate GET request that checks if the process has finished
-		*/
 		err = image.Build(ctx,
 			req.Name,
 			int(req.Verbosity),
 			req.Cache,
 			req.Dryrun, //dryrun
-			req.Output)
+			output_dir,
+			username,
+		)
 		if err != nil {
+			image.ChangeStatus(req.Name, username, "ERROR")
 			plog.Error(fmt.Sprintf("Error running build: %v", err))
 		}
 	}()
@@ -3131,6 +3172,43 @@ func BuildImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// POST /image/reset
+func ResetImageStatus(w http.ResponseWriter, r *http.Request) {
+	plog.Info("HTTP handler called", "handler", "ResetImageStatus")
+
+	var username string
+	user := r.Context().Value("user")
+	if user != nil {
+		username = user.(string)
+	} else {
+		username = ""
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		plog.Error("reading request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	var req proto.ResetImageRequest
+
+	if err = unmarshaler.Unmarshal(body, &req); err != nil {
+		plog.Error("unmashaling request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	err = image.ChangeStatus(req.Name, username, "DEFAULT")
+	if err != nil {
+		plog.Error("changing config", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+
 }
 
 // GET /image/edition
@@ -3170,17 +3248,30 @@ func GetEdition(w http.ResponseWriter, r *http.Request) {
 func TestHandler(w http.ResponseWriter, r *http.Request) {
 	plog.Info("HTTP handler called", "handler", "test")
 
+	// image.ChangeStatus("thenew", "DEMO")
+	var username string
+	user := r.Context().Value("user")
+	if user != nil {
+		username = user.(string)
+	} else {
+		username = ""
+	}
+
+	fmt.Println(username)
+
+	fmt.Println(user)
+
 	imagePath := path.Join(common.PhenixBase, "images")
 
 	fmt.Println(imagePath)
-	dir, err := os.ReadDir(imagePath)
-	if err != nil {
-		plog.Error("%v", err)
-	}
+	// dir, err := os.ReadDir(imagePath)
+	// if err != nil {
+	// plog.Error("%v", err)
+	// }
 
-	for _, entry := range dir {
-		fmt.Println(entry.Name())
-	}
+	// for _, entry := range dir {
+	// 	fmt.Println(entry.Name())
+	// }
 
 	fmt.Fprintf(w, "test")
 }

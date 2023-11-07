@@ -143,7 +143,7 @@ func SetDefaults(img *v1.Image) error {
 // to set default values if the user did not include any in the image create
 // sub-command. This sub-command requires an image `name`. It will return any
 // errors encoutered while creating the configuration.
-func Create(name string, img *v1.Image) error {
+func Create(name string, img *v1.Image, user string) error {
 	if name == "" {
 		return fmt.Errorf("image name is required to create an image")
 	}
@@ -152,11 +152,21 @@ func Create(name string, img *v1.Image) error {
 		return fmt.Errorf("setting image defaults: %w", err)
 	}
 
+	var status v1.ImageStatus
+	status.Init()
+	status.SetStatus(user, "CREATED")
+
 	c := store.Config{
-		Version:  "phenix.sandia.gov/v1",
-		Kind:     "Image",
-		Metadata: store.ConfigMetadata{Name: name},
-		Spec:     structs.MapDefaultCase(img, structs.CASESNAKE),
+		Version: "phenix.sandia.gov/v1",
+		Kind:    "Image",
+		Metadata: store.ConfigMetadata{
+			Name: name,
+			Annotations: map[string]string{
+				"created_by": user,
+			},
+		},
+		Spec:   structs.MapDefaultCase(img, structs.CASESNAKE),
+		Status: structs.MapDefaultCase(&status, structs.CASESNAKE),
 	}
 
 	if err := store.Create(&c); err != nil {
@@ -211,6 +221,10 @@ func CreateFromConfig(name, saveas string, overlays, packages, scripts []string)
 
 	c.Spec = structs.MapDefaultCase(img, structs.CASESNAKE)
 
+	var status *v1.ImageStatus
+	// status.Init()
+	c.Status = structs.MapDefaultCase(status, structs.CASESNAKE)
+
 	if err := store.Create(c); err != nil {
 		return fmt.Errorf("storing new image config %s in store: %w", saveas, err)
 	}
@@ -226,7 +240,7 @@ func CreateFromConfig(name, saveas string, overlays, packages, scripts []string)
 // application is in the `$PATH`. Any errors encountered will be returned during
 // the process of getting an existing image configuration, decoding it,
 // generating the `vmdb` verbosconfiguration file, or executing the `vmdb` command.
-func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun bool, output string) error {
+func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun bool, output string, username string) error {
 	var img v1.Image
 	var filename string
 
@@ -302,6 +316,9 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 	if dryrun {
 		fmt.Printf("DRY RUN: %s %s\n", script, strings.Join(args, " "))
 	} else {
+
+		ChangeStatus(name, username, "BUILDING")
+
 		cmd := exec.Command(script, args...)
 
 		stdout, _ := cmd.StdoutPipe()
@@ -336,6 +353,8 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 		if img.IncludeProtonuke {
 			notes.AddWarnings(ctx, false, fmt.Errorf("inject_protonuke setting is DEPRECATED - use 'image inject-miniexe' subcommand after image is built"))
 		}
+
+		ChangeStatus(name, username, "BUILT")
 	}
 
 	return nil
@@ -359,12 +378,44 @@ func List() ([]types.Image, error) {
 			return nil, fmt.Errorf("decoding image spec: %w", err)
 		}
 
-		img := types.Image{Metadata: c.Metadata, Spec: spec}
+		status := new(v1.ImageStatus)
+		if err := mapstructure.Decode(c.Status, status); err != nil {
+			return nil, fmt.Errorf("decoding imagestatus spec: %w", err)
+		}
+
+		img := types.Image{Metadata: c.Metadata, Spec: spec, Status: status}
 
 		images = append(images, img)
 	}
 
 	return images, nil
+}
+
+func ChangeStatus(name, username, status string) error {
+	c, err := store.NewConfig("image/" + name)
+	if err != nil {
+		return fmt.Errorf("creating new image config for %s: %w", name, err)
+	}
+
+	if err := store.Get(c); err != nil {
+		return fmt.Errorf("getting config from store: %w", err)
+	}
+
+	var imgStatus v1.ImageStatus
+
+	if err := mapstructure.Decode(c.Status, &imgStatus); err != nil {
+		return fmt.Errorf("decoding image status: %w", err)
+	}
+
+	imgStatus.SetStatus(username, status)
+
+	c.Status = structs.MapDefaultCase(imgStatus, structs.CASESNAKE)
+
+	if err := store.Update(c); err != nil {
+		return fmt.Errorf("updating image config in store: %w", err)
+	}
+
+	return nil
 }
 
 // Update retrieves the named image configuration file from the store and will

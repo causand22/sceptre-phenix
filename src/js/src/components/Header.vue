@@ -37,7 +37,7 @@ are only available to Global Administrator or Global Viewer.
                         :to="builderLoc()"
                         external
                         class="navbar-item">Experiment Builder</menu-link>
-          <menu-link v-if="auth && roleAllowed('experiments', 'list')"
+          <menu-link v-if="auth && roleAllowed('images', 'list')"
                         :to="{name: 'imagebuilder'}"
                         class="navbar-item">Image Builder</menu-link>
           <menu-link v-if="auth && roleAllowed('miniconsole', 'post')"

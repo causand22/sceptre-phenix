@@ -245,6 +245,7 @@ func Start(opts ...ServerOption) error {
 	api.HandleFunc("/image/build", BuildImage).Methods("POST", "OPTIONS")
 	api.HandleFunc("/image/edition", GetEdition).Methods("GET", "OPTIONS")
 	api.HandleFunc("/image/test", TestHandler).Methods("GET", "OPTIONS")
+	api.HandleFunc("/image/reset", ResetImageStatus).Methods("POST", "OPTIONS")
 
 	workflowRoutes := []route{
 		{"/workflow/apply/{branch}", weberror.ErrorHandler(ApplyWorkflow), []string{"POST"}},

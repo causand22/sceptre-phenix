@@ -132,6 +132,18 @@
                         </b-checkbox>
                     </b-field>
 
+                    <b-field>
+                        <b-checkbox v-model="newImageForm.global" style="color:black">
+                            Make config global
+                        </b-checkbox>
+                        <b-tooltip label="Make config visible to all local phenix users" 
+                                        type="is-light" 
+                                        multilined>
+                            <b-icon  icon="question-circle" style="color:#383838"></b-icon>
+                        </b-tooltip>
+                    </b-field>
+
+
 
                     <!-- <b-field label="Scripts">
                         <b-taginput
@@ -194,6 +206,7 @@
                             </div>
                         </div>
                     </b-collapse>
+
                 </section>
 
                 <footer class="modal-card-foot">
@@ -225,9 +238,9 @@
                         </b-select>
                     </b-field>
 
-                    <b-field label="Output Directory">
+                    <!-- <b-field label="Output Directory">
                         <b-input type="text" v-model="buildModal.output"></b-input>
-                    </b-field>
+                    </b-field> -->
 
                     <b-field>
                         <b-checkbox v-model="buildModal.cache" style="color:black">Cache</b-checkbox>
@@ -322,6 +335,16 @@
                     <b-table-column field="name" label="Name" width="200" sortable v-slot="props">
                         {{ props.row.name }}
                     </b-table-column>
+                    <b-table-column field="status" label="Status" width="200" sortable v-slot="props">
+                        <b-tooltip
+                            :label="getStatusTooltipLabel( props.row.status )" 
+                            type="is-light">
+                            <button :class="getStatusButtonClassType(props.row.status)">
+                                    {{ getDisplayStatusName( props.row.status ) }}
+                            </button>
+                        </b-tooltip>
+                    </b-table-column>
+
                     <b-table-column field="size" label="Size" width="200" sortable v-slot="props">
                         {{ props.row.size }}
                     </b-table-column>
@@ -339,7 +362,11 @@
                     <b-table-column field="format" label="Format" width="200" sortable v-slot="props">
                         {{ props.row.format }}
                     </b-table-column>
-                    <b-table-column label="Actions" width="150" centered v-slot="props">
+
+                    <!-- <b-table-column field="global" label="Global" width="200" sortable v-slot="props">
+                        {{  props.row.global }}
+                    </b-table-column> -->
+                    <b-table-column label="Actions" width="200" centered v-slot="props">
                         <b-tooltip 
                             v-if="roleAllowed('image', 'build')"
                             label="Build" 
@@ -347,9 +374,11 @@
                             <button
                                 class="button is-primary is-small action"
                                 :disabled="updating( props.row.status )"
-                                @click="activateBuildModal(props.row.name)">
+                                @click="activateBuildModal(props.row.name)"
+                                :loading="updating( props.row.status )">
                                 BUILD
                             </button>
+
                         </b-tooltip>
                         <!-- <b-tooltip label="Edit" type="is-light">
                             <button
@@ -369,6 +398,16 @@
                             </button>
                         </b-tooltip>
 
+                        <b-tooltip label="Reset status" type="is-light">
+                            <button
+                                v-if="roleAllowed('images', 'edit', props.row.name)"
+                                class="button is-light is-small action"
+                                @click="resetImageConfigStatus(props.row.name)">
+                            <b-icon icon="redo"></b-icon>
+
+                            </button>
+                        </b-tooltip>
+
                     </b-table-column>
                 </b-table>
             </div>
@@ -379,6 +418,7 @@
 
 <script>
 //   import EventBus from '@/event-bus'
+import {NotificationProgrammatic as Notification} from 'buefy';
 
 export default {
     mounted () {
@@ -470,6 +510,7 @@ export default {
                 deb_append: null,
                 edition: null,
                 format: null,
+                global: false,
                 include_miniccc: false,
                 include_protonuke: false,
                 install_media: null,
@@ -587,13 +628,23 @@ export default {
                 _ => {          
                     console.log("Create Image Request sumbitted correctly")  
                     this.isWaiting = false;
+
+                    let message = "Image config " + this.newImageForm.name + " created"
+
+                    this.showInfoNotification(message)
+
+                    this.resetCreateModal()
+
+
+
                 }, err => {
                     this.errorNotification(err);
                     this.isWaiting = false;
                 }
                 );
+
+
             this.createModal.active = false;
-            this.resetCreateModal()
             this.updateImages()
         },
 
@@ -618,7 +669,7 @@ export default {
         },
 
         updating: function( status ) {
-            return status == "starting" || status === "stopping";
+            return status == "BUILDING" ;
         },
         delete_config(name ) {
             this.$buefy.dialog.confirm({
@@ -688,6 +739,12 @@ export default {
                 _ => {          
                     console.log("Build request sumbitted correctly")  
                     this.isWaiting = false;
+
+                    message = "Image " + this.buildModal.name + " is now building"
+                    this.showInfoNotification(message)
+
+                    this.updateImages()
+
                 }, err => {
                     this.errorNotification(err);
                     this.isWaiting = false;
@@ -696,7 +753,6 @@ export default {
 
             this.buildModal.active = false;
             this.resetBuildModal()
-            this.updateImages()
         },
         isEmpty(value){
             return (
@@ -704,6 +760,74 @@ export default {
                 (typeof value == 'string' && value.length === 0) ||
                 value == []
             )
+        },
+        showInfoNotification(msg) {
+            Notification.open({
+                type:       'is-success',
+                hasIcon:    true,
+                position:   'is-top',
+                // indefinite: true,
+                progressBar: true,
+                message:    msg,
+                duration: 3000
+            })
+        },
+
+        //STATUS buttons
+        getStatusButtonClassType(status){
+            if (status == 'ERROR') {
+                return "button is-danger is-small"
+            } else if (status == 'EDITED') {
+                return "button is-info is-small"
+            } else if (status == 'BUILT') {
+                return "button is-success-light is-small"
+            } else if (status == 'BUILDING') {
+                return "button is-warning is-small"
+            } else {
+                return "button is-small"
+            }
+        },
+        getDisplayStatusName(status){
+            if (status == 'DEFAULT') {
+                return 'CREATED'
+            }
+            return status
+        },
+        getStatusTooltipLabel(status){
+            if (status == 'ERROR') {
+                return "Image build failed"
+            } else if (status == 'EDITED') {
+                return "Image has been edited since last build"
+            } else if (status == 'BUILT') {
+                return "Image config has been built"
+            } else if (status == 'BUILDING') {
+                return "Image config is currently building"
+            } else {
+                return "Image config is ready to build"
+            }
+        },
+
+        resetImageConfigStatus(name){
+            let resetRequest = {
+                name: name 
+            }
+
+            this.$http.post('image/reset', resetRequest, { timeout: 0 } 
+                ).then(
+                _ => {          
+                    console.log("Reset request sumbitted correctly")  
+                    this.isWaiting = false;
+
+                    message = "Image " + this.buildModal.name + " has been reset"
+                    this.showInfoNotification(message)
+                    this.updateImages()
+
+                }, err => {
+                    this.errorNotification(err);
+                    this.isWaiting = false;
+                }
+                );
+            this.updateImages();
         }
 
     },
@@ -769,7 +893,7 @@ export default {
                 include_protonuke: false,
                 ramdisk: false,
                 verbose_logs: false,
-                
+                global: false,
 
                 //don't actually change
                 scripts: {},

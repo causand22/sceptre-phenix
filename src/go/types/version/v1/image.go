@@ -44,6 +44,8 @@ type Image struct {
 	Cache       bool     `json:"-" yaml:"-" structs:"-" mapstructure:"-"`
 	ScriptPaths []string `json:"-" yaml:"-" structs:"-" mapstructure:"-"`
 	VerboseLogs bool     `json:"-" yaml:"-" structs:"-" mapstructure:"-"`
+
+	Global bool `json:"global" yaml:"global" structs:"global" mapstructure:"global"`
 }
 
 func (this Image) PackageList() string {
@@ -79,4 +81,45 @@ func (this Image) Verbose() string {
 	}
 
 	return ""
+}
+
+/*
+Valid status values:
+  - DEFAULT   (config has been created, nothing else) (if no status, use this)
+  - CREATED   (config has been created, nothing else)
+  - BUILDING  (config is in process of building for user)
+  - BUILT     (config is done building)
+  - EDITED	  (config has been edited after being built)
+  - ERROR     (error during the building phase)
+*/
+type ImageStatus struct {
+	UserToStatus map[string]string `json:"userToStatus" yaml:"userToStatus" structs:"userToStatus" mapstructure:"userToStatus"`
+}
+
+func (this *ImageStatus) Init() {
+	this.UserToStatus = make(map[string]string)
+}
+
+func (this *ImageStatus) GetStatus(username string) string {
+	if this.UserToStatus == nil {
+		this.Init()
+	}
+	if _, ok := this.UserToStatus[username]; !ok {
+		this.UserToStatus[username] = "DEFAULT"
+	}
+	return this.UserToStatus[username]
+}
+
+func (this *ImageStatus) SetStatus(username, status string) {
+	if this.UserToStatus == nil {
+		this.Init()
+	}
+	this.UserToStatus[username] = status
+}
+
+func (this *ImageStatus) Running(username string) bool {
+	if this.UserToStatus == nil {
+		this.Init()
+	}
+	return this.UserToStatus[username] == "BUILDING"
 }
