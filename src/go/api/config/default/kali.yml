@@ -77,3 +77,4 @@ spec:
       echo "\nBuilt with kali image on $(date)\n\n" >> /etc/motd
   size: 10G
   variant: minbase
+  global: true

@@ -107,4 +107,4 @@ spec:
       ln -s /lib/systemd/system/packetbeat.service /etc/systemd/system/multi-user.target.wants/packetbeat.service
   size: 5G
   variant: minbase
-
+  global: true

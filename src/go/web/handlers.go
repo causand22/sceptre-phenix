@@ -2956,23 +2956,28 @@ func ListImage(w http.ResponseWriter, r *http.Request) {
 
 	allowed := []*proto.Image{}
 	for _, img := range images {
-		if !role.Allowed("images", "list", img.Metadata.Name) {
-			continue
-		}
+		// if !role.Allowed("images", "list", img.Metadata.Name) {
+		// 	continue
+		// }
 		// fmt.Println("name", img.Metadata.Name, " created by:", img.GetCreatedBy())
-		//conditions for not showing config (user not root + not global + not created by user /root)
 		createdby := img.GetCreatedBy()
-		if createdby != "" && username != "" {
-			//if private config not created by username, don't show
-			if img.Spec.Global == false && img.GetCreatedBy() != username {
-				continue
+
+		//conditions for not showing config (user not root + not global + not created by user /root)
+		if !role.Allowed("images", "listall") {
+			//user does not have root permissions
+
+			if createdby != "" && username != "" {
+				//if private config not created by username, don't show
+				if img.Spec.Global == false && img.GetCreatedBy() != username {
+					continue
+				}
 			}
 		}
 
 		pbuf_img := util.ImageToProtobuf((*v1.Image)(img.Spec))
 		pbuf_img.Name = img.Metadata.Name
 		pbuf_img.Status = img.Status.GetStatus(username)
-
+		pbuf_img.CreatedBy = createdby
 		allowed = append(allowed, pbuf_img)
 	}
 
@@ -2984,9 +2989,6 @@ func ListImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(body)
-
-	// body, _ := json.Marshal(images)
-	// w.Write(body)
 }
 
 // DELETE /images/{name}
@@ -3114,7 +3116,6 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /image/build
-// TODO: implement protobuf query reading
 func BuildImage(w http.ResponseWriter, r *http.Request) {
 	plog.Debug("HTTP handler called", "handler", "BuildImage")
 
@@ -3141,13 +3142,11 @@ func BuildImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*
-		Make output directory
-	*/
-
+	//Make output directory
 	output_dir := path.Join(common.PhenixBase, "images", username)
 	os.MkdirAll(output_dir, 755)
 
+	//Run build function in new context (don't want handler context)
 	go func() {
 		ctx := context.Background()
 
@@ -3243,35 +3242,4 @@ func GetEdition(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(body)
-}
-
-func TestHandler(w http.ResponseWriter, r *http.Request) {
-	plog.Info("HTTP handler called", "handler", "test")
-
-	// image.ChangeStatus("thenew", "DEMO")
-	var username string
-	user := r.Context().Value("user")
-	if user != nil {
-		username = user.(string)
-	} else {
-		username = ""
-	}
-
-	fmt.Println(username)
-
-	fmt.Println(user)
-
-	imagePath := path.Join(common.PhenixBase, "images")
-
-	fmt.Println(imagePath)
-	// dir, err := os.ReadDir(imagePath)
-	// if err != nil {
-	// plog.Error("%v", err)
-	// }
-
-	// for _, entry := range dir {
-	// 	fmt.Println(entry.Name())
-	// }
-
-	fmt.Fprintf(w, "test")
 }

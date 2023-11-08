@@ -152,3 +152,4 @@ spec:
       chmod +x /usr/local/bin/query-flows.sh
   size: 25G
   variant: minbase
+  global: true

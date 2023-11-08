@@ -32,6 +32,7 @@ message Image {
 
     string status = 22;
     bool global = 23;
+    string created_by = 24 [json_name="created_by"];
 }
 
 message ImageList {

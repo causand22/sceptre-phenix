@@ -164,11 +164,13 @@ func Create(name string, img *v1.Image, user string) error {
 	status.Init()
 	status.SetStatus(user, "PREBUILD")
 
+	expName := GetImageStoreName(name, img, user)
+
 	c := store.Config{
 		Version: "phenix.sandia.gov/v1",
 		Kind:    "Image",
 		Metadata: store.ConfigMetadata{
-			Name: name,
+			Name: expName,
 			Annotations: map[string]string{
 				"created_by": user,
 			},
@@ -405,6 +407,16 @@ func List() ([]types.Image, error) {
 	return images, nil
 }
 
+func GetImageStoreName(name string, img *v1.Image, user string) string {
+	var expName string
+	if img.Global {
+		expName = name
+	} else {
+		expName = fmt.Sprintf("%s-%s", user, name)
+	}
+
+	return expName
+}
 func ChangeStatus(name, username, status string) error {
 	c, err := store.NewConfig("image/" + name)
 	if err != nil {

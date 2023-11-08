@@ -1,9 +1,9 @@
 apiVersion: phenix.sandia.gov/v1
 kind: Role
 metadata:
-  name: experiment-admin
+  name: image-admin
 spec:
-  roleName: Experiment Admin
+  roleName: Image Admin
   policies:
   - resources:
     - experiments
@@ -37,6 +37,7 @@ spec:
   - resources:
     - images
     - "images/*"
+    - "images/*/*"
     verbs:
     - list
     - listall

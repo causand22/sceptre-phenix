@@ -233,6 +233,7 @@ func ImageToProtobuf(img *v1.Image) *proto.Image {
 		Cache:            img.Cache,
 		ScriptPaths:      img.ScriptPaths,
 		VerboseLogs:      img.VerboseLogs,
+		Global:           img.Global,
 	}
 
 	return protoImg

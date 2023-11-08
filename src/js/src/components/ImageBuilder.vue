@@ -12,7 +12,10 @@
                     <b-field label="Image Name" 
                         :type="createModal.nameErrType" 
                         :message="createModal.nameErrMsg">
-                        <b-input type="text" v-model="newImageForm.name"></b-input>
+                        <b-input type="text" v-model="newImageForm.name">
+
+                        </b-input>
+
                     </b-field>
 
 
@@ -136,7 +139,7 @@
                         <b-checkbox v-model="newImageForm.global" style="color:black">
                             Make config global
                         </b-checkbox>
-                        <b-tooltip label="Make config visible to all local phenix users" 
+                        <b-tooltip label="Make config visible to all local phenix users." 
                                         type="is-light" 
                                         multilined>
                             <b-icon  icon="question-circle" style="color:#383838"></b-icon>
@@ -312,7 +315,7 @@
                 </p>
                 &nbsp; &nbsp;
                 <b-tooltip 
-                    v-if="roleAllowed('image', 'create')"
+                    v-if="roleAllowed('images', 'create')"
                     label="create a new image config" 
                     type="is-light" 
                     multilined>
@@ -322,7 +325,7 @@
                 </b-tooltip>
                 &nbsp; &nbsp;
                 <b-tooltip 
-                    v-if="roleAllowed('image', 'list')"
+                    v-if="roleAllowed('images', 'list')"
                     label="refresh the image list" 
                     type="is-light" 
                     multilined>
@@ -345,7 +348,7 @@
                     <b-table-column field="name" label="Name" width="200" sortable v-slot="props">
                         {{ props.row.name }}
                     </b-table-column>
-                    <b-table-column field="status" label="Status" width="200" sortable v-slot="props">
+                    <b-table-column field="status" label="Status" width="150" sortable v-slot="props">
                         <b-tooltip
                             :label="getStatusTooltipLabel( props.row.status )" 
                             type="is-light">
@@ -354,22 +357,24 @@
                             </button>
                         </b-tooltip>
                     </b-table-column>
-
-                    <b-table-column field="size" label="Size" width="200" sortable v-slot="props">
+                    <b-table-column field="global" label="Global" width="100" sortable v-slot="props">
+                        {{ props.row.global }}
+                    </b-table-column>
+                    <b-table-column field="size" label="Size" width="100" sortable v-slot="props">
                         {{ props.row.size }}
                     </b-table-column>
-                    <b-table-column field="os" label="Os" width="200" sortable v-slot="props">
+                    <b-table-column field="os" label="Os" width="100" sortable v-slot="props">
                         <!-- {{ props.row.os === 'linux' ? 
                             props.row.os + ' - ' + props.row.release : 
                             props.row.os }} -->
                         {{ props.row.os }}
                     </b-table-column>
-                    <b-table-column field="release" label="Release" width="200" sortable v-slot="props">
+                    <b-table-column field="release" label="Release" width="100" sortable v-slot="props">
                         {{ props.row.os === 'linux' ?
                             props.row.release :
                             props.row.edition }}
                     </b-table-column>
-                    <b-table-column field="format" label="Format" width="200" sortable v-slot="props">
+                    <b-table-column field="format" label="Format" width="100" sortable v-slot="props">
                         {{ props.row.format }}
                     </b-table-column>
 
@@ -378,7 +383,7 @@
                     </b-table-column> -->
                     <b-table-column label="Actions" width="200" centered v-slot="props">
                         <b-tooltip 
-                            v-if="roleAllowed('image', 'build')"
+                            v-if="roleAllowed('images', 'build')"
                             label="Build" 
                             type="is-light">
                             <button
@@ -400,7 +405,7 @@
                         </b-tooltip> -->
                         <b-tooltip label="Delete" type="is-light">
                             <button 
-                                v-if="roleAllowed('images', 'delete', props.row.name)"
+                                v-if="roleAllowed('images', 'delete')"
                                 class="button is-light is-small action" 
                                 :disabled="updating( props.row.status )" 
                                 @click="delete_config(props.row.name)">
@@ -410,7 +415,7 @@
 
                         <b-tooltip label="Reset status" type="is-light">
                             <button
-                                v-if="roleAllowed('images', 'edit', props.row.name)"
+                                v-if="roleAllowed('images', 'edit')"
                                 class="button is-light is-small action"
                                 @click="resetImageConfigStatus(props.row.name)">
                             <b-icon icon="redo"></b-icon>
@@ -422,7 +427,6 @@
                 </b-table>
             </div>
         </template>
-        <button @click="testMethod">Test</button>
     </div>
 </template>
 
@@ -477,16 +481,7 @@ export default {
     },
 
     methods: {
-        testMethod(){
-            console.log("Sending test")
-            this.$http.get("image/test").then(
-                response => {
-                    response.json().then( state=>{
-                        console.log(state)
-                    })
-                }
-            )
-        },
+
         // General page functions
         updateImages(){
             this.isWaiting = true
@@ -566,19 +561,20 @@ export default {
             }
             if (/\s/.test(this.newImageForm.name)) {
                 this.createModal.nameErrType = 'is-danger';
-                this.createModal.nameErrMsg = 'experiment names cannot have a space';
+                this.createModal.nameErrMsg = 'image names cannot have a space';
                 return false;
             }
             else if (/\./.test(this.newImageForm.name)) {
                 this.createModal.nameErrType = 'is-danger';
-                this.createModal.nameErrMsg = 'experiment names cannot have a period';
+                this.createModal.nameErrMsg = 'image names cannot have a period';
                 return false;
             }
             else if (this.newImageForm.name == "create") {
                 this.createModal.nameErrType = 'is-danger';
-                this.createModal.nameErrMsg = 'experiment names cannot be create!';
+                this.createModal.nameErrMsg = 'image name cannot be create!';
                 return false; 
             }
+
             else {
                 this.createModal.nameErrType = null;
                 this.createModal.nameErrMsg = null;
@@ -847,7 +843,17 @@ export default {
                 }
             })
 
-        }
+        },
+        // getGlobalFilteredName(image_config){
+        //     if (image_config.global) {
+        //         return image_config.name
+
+        //     } else {
+
+        //         const arr = image_config.split("/")
+        //         return image_config.name.replace(re, '')
+        //     }
+        // }
 
     },
     data() {

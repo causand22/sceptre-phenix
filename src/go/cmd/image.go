@@ -123,6 +123,7 @@ func newImageCreateCmd() *cobra.Command {
 			img.DebAppend = MustGetString(cmd.Flags(), "debootstrap-append")
 			img.IncludeMiniccc = MustGetBool(cmd.Flags(), "include-miniccc")
 			img.IncludeProtonuke = MustGetBool(cmd.Flags(), "include-protonuke")
+			img.Global = true //command line images are always global
 
 			if overlays := MustGetString(cmd.Flags(), "overlays"); overlays != "" {
 				img.Overlays = strings.Split(overlays, ",")

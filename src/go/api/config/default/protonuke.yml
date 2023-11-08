@@ -85,3 +85,4 @@ spec:
       mkdir -p /etc/phenix/startup
   size: 5G
   variant: minbase
+  global: true
