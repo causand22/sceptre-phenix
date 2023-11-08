@@ -3002,16 +3002,15 @@ func DeleteImage(w http.ResponseWriter, r *http.Request) {
 		name = vars["name"]
 	)
 
-	if !role.Allowed("images", "delete", name) {
-		err := weberror.NewWebError(nil, "deleting image %s not allowed for %s", name, ctx.Value("user").(string))
+	if !role.Allowed("images", "delete") {
+		err := weberror.NewWebError(nil, "deleting images not allowed for %s", ctx.Value("user").(string))
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 
-	plog.Info("Called http handler delete with arg", "name", name)
 	if err := image.Delete(name); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -3028,7 +3027,17 @@ func DeleteImage(w http.ResponseWriter, r *http.Request) {
 func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
 	plog.Debug("HTTP handler called", "handler", "CreateImageDefaults")
 
-	query := r.URL.Query()
+	var (
+		ctx   = r.Context()
+		role  = ctx.Value("role").(rbac.Role)
+		query = r.URL.Query()
+	)
+
+	if !role.Allowed("images", "create") {
+		err := weberror.NewWebError(nil, "creaeting images not allowed for %s", ctx.Value("user").(string))
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 
 	img := &v1.Image{}
 	img.Os = v1.Os(query.Get("os"))
@@ -3118,6 +3127,17 @@ func CreateImage(w http.ResponseWriter, r *http.Request) {
 // POST /image/build
 func BuildImage(w http.ResponseWriter, r *http.Request) {
 	plog.Debug("HTTP handler called", "handler", "BuildImage")
+
+	var (
+		ctx  = r.Context()
+		role = ctx.Value("role").(rbac.Role)
+	)
+
+	if !role.Allowed("images", "build") {
+		err := weberror.NewWebError(nil, "building images not allowed for %s", ctx.Value("user").(string))
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 
 	var username string
 	user := r.Context().Value("user")

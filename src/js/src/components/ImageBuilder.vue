@@ -569,6 +569,11 @@ export default {
                 this.createModal.nameErrMsg = 'image names cannot have a period';
                 return false;
             }
+            else if (/\//.test(this.newImageForm.name)) {
+                this.createModal.nameErrType = 'is-danger';
+                this.createModal.nameErrMsg = 'image names cannot have a forward slash';
+                return false;
+            }
             else if (this.newImageForm.name == "create") {
                 this.createModal.nameErrType = 'is-danger';
                 this.createModal.nameErrMsg = 'image name cannot be create!';
