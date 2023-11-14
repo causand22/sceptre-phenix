@@ -3218,6 +3218,21 @@ func BuildImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//Check if another image is being built
+	images, err := image.List()
+	if err != nil {
+		err_string := fmt.Sprintf("failed to list images: %v", err)
+		http.Error(w, err_string, http.StatusInternalServerError)
+		return
+	}
+	for _, img := range images {
+		if img.Status.IsRunning() {
+			plog.Error("Error: trying to build an image while another image is being built.")
+			err := weberror.NewWebError(nil, "Cannot build an image while another image is being built. Please wait 10-15 minutes and try again.")
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+	}
 	var username string
 	user := r.Context().Value("user")
 	if user != nil {

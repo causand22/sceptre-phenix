@@ -117,9 +117,14 @@ func (this *ImageStatus) SetStatus(username, status string) {
 	this.UserToStatus[username] = status
 }
 
-func (this *ImageStatus) Running(username string) bool {
+func (this *ImageStatus) IsRunning() bool {
 	if this.UserToStatus == nil {
 		this.Init()
 	}
-	return this.UserToStatus[username] == "BUILDING"
+	for _, status := range this.UserToStatus {
+		if status == "BUILDING" {
+			return true
+		}
+	}
+	return false
 }
