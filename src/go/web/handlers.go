@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,14 +23,18 @@ import (
 	"phenix/api/cluster"
 	"phenix/api/config"
 	"phenix/api/experiment"
+	"phenix/api/image"
 	"phenix/api/scenario"
 	"phenix/api/vm"
 	"phenix/app"
 	"phenix/store"
+	v1 "phenix/types/version/v1"
+	"phenix/util/common"
 	"phenix/util/mm"
 	"phenix/util/notes"
 	"phenix/util/plog"
 	"phenix/util/pubsub"
+	"phenix/util/shell"
 	"phenix/web/broker"
 	"phenix/web/cache"
 	"phenix/web/proto"
@@ -2996,4 +3001,344 @@ func parseInt(v string, d *int) error {
 	var err error
 	*d, err = strconv.Atoi(v)
 	return err
+}
+
+// GET /images
+func ListImage(w http.ResponseWriter, r *http.Request) {
+	plog.Debug("HTTP handler called", "handler", "ListImage")
+
+	var (
+		ctx  = r.Context()
+		role = ctx.Value("role").(rbac.Role)
+	)
+
+	var username string
+	user := ctx.Value("user")
+	if user != nil {
+		username = user.(string)
+	} else {
+		username = ""
+	}
+
+	if !role.Allowed("images", "list") {
+		plog.Warn("listing images not allowed", "user", ctx.Value("user").(string))
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	images, err := image.List()
+	if err != nil {
+		err_string := fmt.Sprintf("failed to list images: %v", err)
+		http.Error(w, err_string, http.StatusInternalServerError)
+		return
+	}
+
+	allowed := []*proto.Image{}
+	for _, img := range images {
+		// if !role.Allowed("images", "list", img.Metadata.Name) {
+		// 	continue
+		// }
+		// fmt.Println("name", img.Metadata.Name, " created by:", img.GetCreatedBy())
+		createdby := img.GetCreatedBy()
+
+		//conditions for not showing config (user not root + not global + not created by user /root)
+		if !role.Allowed("images", "listall") {
+			//user does not have root permissions
+
+			if createdby != "" && username != "" {
+				//if private config not created by username, don't show
+				if img.Spec.Global == false && img.GetCreatedBy() != username {
+					continue
+				}
+			}
+		}
+
+		pbuf_img := util.ImageToProtobuf((*v1.Image)(img.Spec))
+		pbuf_img.Name = img.Metadata.Name
+		pbuf_img.Status = img.Status.GetStatus(username)
+		pbuf_img.CreatedBy = createdby
+		allowed = append(allowed, pbuf_img)
+	}
+
+	body, err := marshaler.Marshal(&proto.ImageList{Images: allowed})
+	if err != nil {
+		plog.Error("marshaling images", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(body)
+}
+
+// DELETE /images/{name}
+func DeleteImage(w http.ResponseWriter, r *http.Request) {
+	plog.Debug("HTTP handler called", "handler", "DeleteImage")
+
+	var (
+		ctx  = r.Context()
+		role = ctx.Value("role").(rbac.Role)
+		vars = mux.Vars(r)
+		name = vars["name"]
+	)
+
+	if !role.Allowed("images", "delete") {
+		err := weberror.NewWebError(nil, "deleting images not allowed for %s", ctx.Value("user").(string))
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	if err := image.Delete(name); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+
+	broker.Broadcast(
+		bt.NewRequestPolicy("images", "delete", name),
+		bt.NewResource("images", name, "delete"),
+		nil,
+	)
+
+}
+
+// GET /images/create
+func CreateImageDefaults(w http.ResponseWriter, r *http.Request) {
+	plog.Debug("HTTP handler called", "handler", "CreateImageDefaults")
+
+	var (
+		ctx   = r.Context()
+		role  = ctx.Value("role").(rbac.Role)
+		query = r.URL.Query()
+	)
+
+	if !role.Allowed("images", "create") {
+		err := weberror.NewWebError(nil, "creaeting images not allowed for %s", ctx.Value("user").(string))
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	img := &v1.Image{}
+	img.Os = v1.Os(query.Get("os"))
+
+	err := image.SetDefaults(img)
+	if err != nil {
+		plog.Error("Setting defaults on empty image", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	body, err := marshaler.Marshal(util.ImageToProtobuf(img))
+	if err != nil {
+		plog.Error("marshaling image", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(body)
+}
+
+// POST /image/create
+func CreateImage(w http.ResponseWriter, r *http.Request) {
+	plog.Debug("HTTP handler called", "handler", "CreateImage")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		plog.Error("reading request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	var req proto.Image
+
+	if err = unmarshaler.Unmarshal(body, &req); err != nil {
+		plog.Error("unmashaling request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	var username string
+	user := r.Context().Value("user")
+	if user != nil {
+		username = user.(string)
+	} else {
+		username = ""
+	}
+
+	fmt.Println("Creating image", req.Name, "from user", username)
+
+	//TODO: Is there a better way to do this?
+	img := &v1.Image{
+		Variant:          req.Variant,
+		Os:               v1.Os(req.Os),
+		InstallMedia:     req.InstallMedia,
+		Release:          req.Release,
+		Format:           v1.Format(req.Format),
+		Edition:          req.Edition,
+		Ramdisk:          req.Ramdisk,
+		Compress:         req.Compress,
+		Size:             req.Size,
+		Mirror:           req.Mirror,
+		DebAppend:        req.DebAppend,
+		Packages:         req.Packages,
+		Overlays:         req.Overlays,
+		Scripts:          req.Scripts,
+		ScriptOrder:      req.ScriptOrder,
+		IncludeMiniccc:   req.IncludeMiniccc,
+		IncludeProtonuke: req.IncludeProtonuke,
+		Cache:            req.Cache,
+		ScriptPaths:      req.ScriptPaths,
+		VerboseLogs:      req.VerboseLogs,
+		Global:           req.Global,
+	}
+
+	err = image.Create(req.Name, img, username)
+
+	if err != nil {
+		err_string := fmt.Sprintf("creating image failed: %v", err)
+		http.Error(w, err_string, http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+
+}
+
+// POST /image/build
+func BuildImage(w http.ResponseWriter, r *http.Request) {
+	plog.Debug("HTTP handler called", "handler", "BuildImage")
+
+	var (
+		ctx  = r.Context()
+		role = ctx.Value("role").(rbac.Role)
+	)
+
+	if !role.Allowed("images", "build") {
+		err := weberror.NewWebError(nil, "building images not allowed for %s", ctx.Value("user").(string))
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	var username string
+	user := r.Context().Value("user")
+	if user != nil {
+		username = user.(string)
+	} else {
+		username = ""
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		plog.Error("reading request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	var req proto.BuildImageRequest
+
+	if err = unmarshaler.Unmarshal(body, &req); err != nil {
+		plog.Error("unmashaling request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	//Make output directory
+	output_dir := path.Join(common.PhenixBase, "images", username)
+	os.MkdirAll(output_dir, 755)
+
+	//Run build function in new context (don't want handler context)
+	go func() {
+		ctx := context.Background()
+
+		err = image.Build(ctx,
+			req.Name,
+			int(req.Verbosity),
+			req.Cache,
+			req.Dryrun, //dryrun
+			output_dir,
+			username,
+		)
+		if err != nil {
+			image.ChangeStatus(req.Name, username, "ERROR")
+			plog.Error(fmt.Sprintf("Error running build: %v", err))
+		}
+	}()
+
+	if err != nil {
+		err_string := fmt.Sprintf("building image failed: %v", err)
+		http.Error(w, err_string, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// POST /image/reset
+func ResetImageStatus(w http.ResponseWriter, r *http.Request) {
+	plog.Info("HTTP handler called", "handler", "ResetImageStatus")
+
+	var username string
+	user := r.Context().Value("user")
+	if user != nil {
+		username = user.(string)
+	} else {
+		username = ""
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		plog.Error("reading request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	var req proto.ResetImageRequest
+
+	if err = unmarshaler.Unmarshal(body, &req); err != nil {
+		plog.Error("unmashaling request body", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	err = image.ChangeStatus(req.Name, username, "PREBUILD")
+	if err != nil {
+		plog.Error("changing config", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+
+}
+
+// GET /image/edition
+func GetEdition(w http.ResponseWriter, r *http.Request) {
+	plog.Info("HTTP handler called", "handler", "GetEdition")
+
+	query := r.URL.Query()
+	if !shell.CommandExists("vmwin") {
+		http.Error(w, "vmwin not found", http.StatusInternalServerError)
+		return
+	}
+
+	media := query.Get("media")
+
+	output, err := exec.Command("vmwin", "--install-image", media, "--get-editions").Output()
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "error running vmwin", http.StatusInternalServerError)
+		return
+	}
+
+	var res proto.Editions
+
+	trimmedOutput := strings.TrimSuffix(string(output), "\n")
+	res.Editions = strings.Split(trimmedOutput, "\n")
+
+	body, err := marshaler.Marshal(&res)
+	if err != nil {
+		plog.Error("marshaling edition", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(body)
 }

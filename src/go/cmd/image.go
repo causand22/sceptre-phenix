@@ -112,6 +112,7 @@ func newImageCreateCmd() *cobra.Command {
 			}
 
 			name := args[0]
+			img.Os = v1.Os(MustGetString(cmd.Flags(), "os"))
 			img.Size = MustGetString(cmd.Flags(), "size")
 			img.Variant = MustGetString(cmd.Flags(), "variant")
 			img.Release = MustGetString(cmd.Flags(), "release")
@@ -122,6 +123,7 @@ func newImageCreateCmd() *cobra.Command {
 			img.DebAppend = MustGetString(cmd.Flags(), "debootstrap-append")
 			img.IncludeMiniccc = MustGetBool(cmd.Flags(), "include-miniccc")
 			img.IncludeProtonuke = MustGetBool(cmd.Flags(), "include-protonuke")
+			img.Global = true //command line images are always global
 
 			if overlays := MustGetString(cmd.Flags(), "overlays"); overlays != "" {
 				img.Overlays = strings.Split(overlays, ",")
@@ -140,7 +142,14 @@ func newImageCreateCmd() *cobra.Command {
 				return fmt.Errorf("Must provide a valid unit for disk size option (e.g., '500M' or '10G')")
 			}
 
-			if err := image.Create(name, &img); err != nil {
+			if img.Os == v1.Os_windows {
+				img.InstallMedia = MustGetString(cmd.Flags(), "install-media")
+				img.Edition = MustGetString(cmd.Flags(), "edition")
+				img.Variant = ""
+				img.Release = ""
+			}
+
+			if err := image.Create(name, &img, ""); err != nil {
 				err := util.HumanizeError(err, "Unable to create the "+name+" image")
 				return err.Humanized()
 			}
@@ -152,6 +161,9 @@ func newImageCreateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringP("size", "s", "5G", "Image size to use")
+	cmd.Flags().String("os", "linux", "Operating system (windows, linux)")
+	cmd.Flags().String("install-media", "", "Path to windows install media")
+	cmd.Flags().String("edition", "", "Edition of windows")
 	cmd.Flags().StringP("variant", "v", "minbase", "Image variant to use")
 	cmd.Flags().StringP("release", "r", "bionic", "OS release codename")
 	cmd.Flags().StringP("mirror", "m", "http://us.archive.ubuntu.com/ubuntu/", "Debootstrap mirror (must match release)")
@@ -309,7 +321,7 @@ func newImageBuildCmd() *cobra.Command {
 
 			ctx := notes.Context(context.Background(), false)
 
-			if err := image.Build(ctx, name, verbosity, cache, dryrun, output); err != nil {
+			if err := image.Build(ctx, name, verbosity, cache, dryrun, output, ""); err != nil {
 				err := util.HumanizeError(err, "Unable to build the "+name+" image")
 				return err.Humanized()
 			}
@@ -340,18 +352,8 @@ func newImageDeleteCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 
-			if name == "" {
-				return fmt.Errorf("The name of the configuration to delete is required")
-			}
+			return image.Delete(name)
 
-			if err := config.Delete("image/" + name); err != nil {
-				err := util.HumanizeError(err, "Unable to delete the "+name+" image")
-				return err.Humanized()
-			}
-
-			fmt.Printf("The configuration for the %s image was deleted\n", name)
-
-			return nil
 		},
 	}
 

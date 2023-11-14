@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+option go_package = "web/proto";
+
+
+message Image {
+    string name = 1;
+    string variant = 2;
+    string os = 3;
+    string install_media = 4 [json_name="install_media"];
+    string release = 5;
+    string format = 6;
+    bool ramdisk = 7;
+    bool compress = 8;
+    string size = 9;
+    string mirror = 10;
+    string deb_append = 11 [json_name="deb_append"];
+    repeated string packages = 12;
+    repeated string overlays = 13;
+    map<string, string> scripts = 14;
+    repeated string script_order = 15 [json_name="script_order"];
+
+    bool include_miniccc = 16 [json_name="include_miniccc"];
+    bool include_protonuke = 17 [json_name="include_protonuke"];
+
+    bool cache = 18;
+    repeated string script_paths = 19 [json_name="script_paths"];
+
+    bool verbose_logs = 20 [json_name='verbose_logs'];
+
+    string edition = 21;
+
+    string status = 22;
+    bool global = 23;
+    string created_by = 24 [json_name="created_by"];
+}
+
+message ImageList {
+
+    repeated Image images = 1;
+    
+}
+
+message BuildImageRequest {
+    string name = 1;
+    uint32 verbosity = 2;
+    bool cache = 3;
+    bool dryrun = 4;
+    string output = 5;
+}
+
+message Editions {
+    repeated string editions = 1;
+}
+
+message ResetImageRequest {
+    string name = 1;
+}

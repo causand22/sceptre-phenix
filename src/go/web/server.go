@@ -239,6 +239,15 @@ func Start(opts ...ServerOption) error {
 	api.HandleFunc("/console/{pid}/ws", WsConsole).Methods("GET", "OPTIONS")
 	api.HandleFunc("/console/{pid}/size", ResizeConsole).Methods("POST", "OPTIONS").Queries("cols", "{cols:[0-9]+}", "rows", "{rows:[0-9]+}")
 
+	api.HandleFunc("/images", ListImage).Methods("GET")
+	api.HandleFunc("/images/{name}", DeleteImage).Methods("DELETE")
+
+	api.HandleFunc("/image/create", CreateImageDefaults).Methods("GET")
+	api.HandleFunc("/image/create", CreateImage).Methods("POST", "OPTIONS")
+	api.HandleFunc("/image/build", BuildImage).Methods("POST", "OPTIONS")
+	api.HandleFunc("/image/edition", GetEdition).Methods("GET", "OPTIONS")
+	api.HandleFunc("/image/reset", ResetImageStatus).Methods("POST", "OPTIONS")
+
 	workflowRoutes := []route{
 		{"/workflow/apply/{branch}", weberror.ErrorHandler(ApplyWorkflow), []string{"POST"}},
 		{"/workflow/configs/{branch}", weberror.ErrorHandler(WorkflowUpsertConfig), []string{"POST"}},

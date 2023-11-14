@@ -1,9 +1,9 @@
 apiVersion: phenix.sandia.gov/v1
 kind: Role
 metadata:
-  name: experiment-admin
+  name: image-user
 spec:
-  roleName: Experiment Admin
+  roleName: Image User
   policies:
   - resources:
     - experiments
@@ -11,23 +11,28 @@ spec:
     verbs:
     - list
     - get
-    - update
   - resources:
     - vms
     - "vms/*"
     verbs:
     - list
     - get
-    - create
-    - update
     - patch
+  - resources:
+    - "vms/redeploy"
+    verbs:
+    - update
+  - resources:
+    - "vms/captures"
+    verbs:
+    - create
     - delete
   - resources:
-    - disks
-    resourceNames:
-    - "*"
+    - "vms/snapshots"
     verbs:
     - list
+    - create
+    - update
   - resources:
     - hosts
     resourceNames:
@@ -37,10 +42,11 @@ spec:
   - resources:
     - images
     - "images/*"
+    - "images/*/*"
     verbs:
     - list
-    - listall
     - create
     - delete
     - edit
     - build
+  

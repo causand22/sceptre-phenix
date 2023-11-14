@@ -13,10 +13,12 @@ import (
 	"path"
 	"strings"
 
+	"phenix/api/config"
 	"phenix/store"
 	"phenix/tmpl"
 	"phenix/types"
 	v1 "phenix/types/version/v1"
+	"phenix/util"
 	"phenix/util/mm/mmcli"
 	"phenix/util/notes"
 	"phenix/util/shell"
@@ -52,72 +54,85 @@ var (
 // error will be returned if the variant value is not valid (acceptable values
 // are `minbase` or `mingui`).
 func SetDefaults(img *v1.Image) error {
-	if img.Size == "" {
-		img.Size = "5G"
-	}
 
-	if img.Variant == "" {
-		img.Variant = "minbase"
-	}
-
-	if img.Release == "" {
-		img.Release = "bionic"
-	}
-
-	if img.Mirror == "" {
-		img.Mirror = "http://us.archive.ubuntu.com/ubuntu/"
-	}
-
-	if img.Format == "" {
-		img.Format = "raw"
-	}
-
-	if !strings.Contains(img.DebAppend, "--components=") {
-		if img.Release == "kali" || img.Release == "kali-rolling" {
-			img.DebAppend += " --components=" + strings.Join(PACKAGES_COMPONENTS_KALI, ",")
-		} else {
-			img.DebAppend += " --components=" + strings.Join(PACKAGES_COMPONENTS, ",")
+	if img.Os == v1.Os_linux {
+		if img.Variant == "" {
+			img.Variant = "minbase"
 		}
-	}
 
-	img.Scripts = make(map[string]string)
-
-	img.Packages = append(img.Packages, PACKAGES_DEFAULT...)
-
-	switch img.Variant {
-	case "minbase":
-		if img.Release == "kali" || img.Release == "kali-rolling" {
-			img.Packages = append(img.Packages, PACKAGES_KALI...)
-		} else {
-			img.Packages = append(img.Packages, PACKAGES_UBUNTU...)
+		if img.Release == "" {
+			img.Release = "bionic"
 		}
-	case "mingui":
-		if img.Release == "kali" || img.Release == "kali-rolling" {
-			img.Packages = append(img.Packages, PACKAGES_KALI...)
-			img.Packages = append(img.Packages, PACKAGES_MINGUI_KALI...)
-		} else {
-			img.Packages = append(img.Packages, PACKAGES_UBUNTU...)
-			img.Packages = append(img.Packages, PACKAGES_MINGUI...)
-			if img.Release == "xenial" {
-				img.Packages = append(img.Packages, "qupzilla")
+
+		if img.Mirror == "" {
+			img.Mirror = "http://us.archive.ubuntu.com/ubuntu/"
+		}
+
+		if !strings.Contains(img.DebAppend, "--components=") {
+			if img.Release == "kali" || img.Release == "kali-rolling" {
+				img.DebAppend += " --components=" + strings.Join(PACKAGES_COMPONENTS_KALI, ",")
 			} else {
-				img.Packages = append(img.Packages, "falkon")
+				img.DebAppend += " --components=" + strings.Join(PACKAGES_COMPONENTS, ",")
 			}
-			addScriptToImage(img, "POSTBUILD_GUI", POSTBUILD_GUI)
 		}
-	default:
-		return fmt.Errorf("variant %s is not implemented", img.Variant)
+		img.Scripts = make(map[string]string)
+		switch img.Variant {
+		case "minbase":
+			if img.Release == "kali" || img.Release == "kali-rolling" {
+				img.Packages = append(img.Packages, PACKAGES_KALI...)
+			} else {
+				img.Packages = append(img.Packages, PACKAGES_UBUNTU...)
+			}
+		case "mingui":
+			if img.Release == "kali" || img.Release == "kali-rolling" {
+				img.Packages = append(img.Packages, PACKAGES_KALI...)
+				img.Packages = append(img.Packages, PACKAGES_MINGUI_KALI...)
+			} else {
+				img.Packages = append(img.Packages, PACKAGES_UBUNTU...)
+				img.Packages = append(img.Packages, PACKAGES_MINGUI...)
+				if img.Release == "xenial" {
+					img.Packages = append(img.Packages, "qupzilla")
+				} else {
+					img.Packages = append(img.Packages, "falkon")
+				}
+				addScriptToImage(img, "POSTBUILD_GUI", POSTBUILD_GUI)
+			}
+		default:
+			return fmt.Errorf("variant %s is not implemented", img.Variant)
+		}
+
+		addScriptToImage(img, "POSTBUILD_APT_CLEANUP", POSTBUILD_APT_CLEANUP)
+
+		switch img.Variant {
+		case "minbase", "mingui":
+			addScriptToImage(img, "POSTBUILD_NO_ROOT_PASSWD", POSTBUILD_NO_ROOT_PASSWD)
+			addScriptToImage(img, "POSTBUILD_PHENIX_HOSTNAME", POSTBUILD_PHENIX_HOSTNAME)
+			addScriptToImage(img, "POSTBUILD_PHENIX_BASE", POSTBUILD_PHENIX_BASE)
+		default:
+			return fmt.Errorf("variant %s is not implemented", img.Variant)
+		}
+		img.Packages = append(img.Packages, PACKAGES_DEFAULT...)
+		if img.Size == "" {
+			img.Size = "5G"
+		}
+		if img.Format == "" {
+			img.Format = "raw"
+		}
 	}
-
-	addScriptToImage(img, "POSTBUILD_APT_CLEANUP", POSTBUILD_APT_CLEANUP)
-
-	switch img.Variant {
-	case "minbase", "mingui":
-		addScriptToImage(img, "POSTBUILD_NO_ROOT_PASSWD", POSTBUILD_NO_ROOT_PASSWD)
-		addScriptToImage(img, "POSTBUILD_PHENIX_HOSTNAME", POSTBUILD_PHENIX_HOSTNAME)
-		addScriptToImage(img, "POSTBUILD_PHENIX_BASE", POSTBUILD_PHENIX_BASE)
-	default:
-		return fmt.Errorf("variant %s is not implemented", img.Variant)
+	if img.Os == v1.Os_windows {
+		if img.InstallMedia == "" {
+			img.InstallMedia = "/scratch/iso/en-us_windows_11_business_editions_version_22h2_updated_aug_2023_x64_dvd_03c6b773.iso"
+		}
+		if img.Edition == "" {
+			img.Edition = "Windows 11 Enterprise"
+		}
+		if img.Size == "" {
+			img.Size = "50G"
+		}
+		if img.Format == "" {
+			img.Format = "qcow2"
+		}
+		img.IncludeMiniccc = true
 	}
 
 	if len(img.ScriptPaths) > 0 {
@@ -136,7 +151,7 @@ func SetDefaults(img *v1.Image) error {
 // to set default values if the user did not include any in the image create
 // sub-command. This sub-command requires an image `name`. It will return any
 // errors encoutered while creating the configuration.
-func Create(name string, img *v1.Image) error {
+func Create(name string, img *v1.Image, user string) error {
 	if name == "" {
 		return fmt.Errorf("image name is required to create an image")
 	}
@@ -145,15 +160,27 @@ func Create(name string, img *v1.Image) error {
 		return fmt.Errorf("setting image defaults: %w", err)
 	}
 
+	var status v1.ImageStatus
+	status.Init()
+	status.SetStatus(user, "PREBUILD")
+
+	expName := GetImageStoreName(name, img, user)
+
 	c := store.Config{
-		Version:  "phenix.sandia.gov/v1",
-		Kind:     "Image",
-		Metadata: store.ConfigMetadata{Name: name},
-		Spec:     structs.MapDefaultCase(img, structs.CASESNAKE),
+		Version: "phenix.sandia.gov/v1",
+		Kind:    "Image",
+		Metadata: store.ConfigMetadata{
+			Name: expName,
+			Annotations: map[string]string{
+				"created_by": user,
+			},
+		},
+		Spec:   structs.MapDefaultCase(img, structs.CASESNAKE),
+		Status: structs.MapDefaultCase(&status, structs.CASESNAKE),
 	}
 
 	if err := store.Create(&c); err != nil {
-		return fmt.Errorf("storing image config: %w", err)
+		return fmt.Errorf("storing image config %s: %w", name, err)
 	}
 
 	return nil
@@ -204,6 +231,10 @@ func CreateFromConfig(name, saveas string, overlays, packages, scripts []string)
 
 	c.Spec = structs.MapDefaultCase(img, structs.CASESNAKE)
 
+	var status *v1.ImageStatus
+	// status.Init()
+	c.Status = structs.MapDefaultCase(status, structs.CASESNAKE)
+
 	if err := store.Create(c); err != nil {
 		return fmt.Errorf("storing new image config %s in store: %w", saveas, err)
 	}
@@ -219,7 +250,7 @@ func CreateFromConfig(name, saveas string, overlays, packages, scripts []string)
 // application is in the `$PATH`. Any errors encountered will be returned during
 // the process of getting an existing image configuration, decoding it,
 // generating the `vmdb` verbosconfiguration file, or executing the `vmdb` command.
-func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun bool, output string) error {
+func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun bool, output string, username string) error {
 	var img v1.Image
 	var filename string
 
@@ -243,46 +274,78 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 
 		img.Cache = cache
 
-		// The Kali package repos use `kali-rolling` as the release name.
-		if img.Release == "kali" {
-			img.Release = "kali-rolling"
-		}
+		if img.Os == v1.Os_linux {
+			// The Kali package repos use `kali-rolling` as the release name.
+			if img.Release == "kali" {
+				img.Release = "kali-rolling"
+			}
 
-		filename = output + "/" + name + ".vmdb"
+			filename = output + "/" + name + ".vmdb"
 
-		if err := tmpl.CreateFileFromTemplate("vmdb.tmpl", img, filename); err != nil {
-			return fmt.Errorf("generate vmdb config from template: %w", err)
+			if err := tmpl.CreateFileFromTemplate("vmdb.tmpl", img, filename); err != nil {
+				return fmt.Errorf("generate vmdb config from template: %w", err)
+			}
 		}
 	}
-
-	if !dryrun && !shell.CommandExists("vmdb2") {
-		return fmt.Errorf("vmdb2 app does not exist in your path")
+	var script string
+	if img.Os == v1.Os_linux {
+		script = "vmdb2"
+	} else if img.Os == v1.Os_windows {
+		script = "vmwin"
+	}
+	if !dryrun && !shell.CommandExists(script) {
+		return fmt.Errorf("%s app does not exist in your path", script)
 	}
 
 	args := []string{
-		filename,
 		"--output", output + "/" + name,
-		"--rootfs-tarball", output + "/" + name + ".tar",
 	}
 
-	if verbosity >= V_VERBOSE {
-		args = append(args, "-v")
-	}
+	if img.Os == v1.Os_windows {
+		winargs := []string{
+			"--install-image", img.InstallMedia,
+			"--edition", fmt.Sprintf("\"%s\"", img.Edition),
+			"--size", img.Size,
+		}
+		args = append(args, winargs...)
+		if len(img.ScriptOrder) > 0 {
+			args = append(args, "--scripts")
+			args = append(args, img.ScriptOrder...)
+		}
+		if img.IncludeMiniccc {
+			args = append(args, "--miniccc")
+		}
+	} else {
+		linuxargs := []string{
+			filename,
+			"--rootfs-tarball", output + "/" + name + ".tar",
+		}
+		args = append(linuxargs, args...)
+		if verbosity >= V_VERBOSE {
+			args = append(args, "-v")
+		}
 
-	if verbosity >= V_VVERBOSE {
-		args = append(args, "--log", "stderr")
+		if verbosity >= V_VVERBOSE {
+			args = append(args, "--log", "stderr")
+		}
+		if img.IncludeMiniccc {
+			notes.AddWarnings(ctx, false, fmt.Errorf("inject_miniccc setting is DEPRECATED - use 'image inject-miniexe' subcommand after image is built"))
+		}
 	}
 
 	if dryrun {
-		fmt.Printf("DRY RUN: vmdb2 %s\n", strings.Join(args, " "))
+		fmt.Printf("DRY RUN: %s %s\n", script, strings.Join(args, " "))
 	} else {
-		cmd := exec.Command("vmdb2", args...)
+
+		ChangeStatus(name, username, "BUILDING")
+
+		cmd := exec.Command(script, args...)
 
 		stdout, _ := cmd.StdoutPipe()
 		stderr, _ := cmd.StderrPipe()
 
 		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("starting vmdb2 command: %w", err)
+			return fmt.Errorf("starting %s command: %w", script, err)
 		}
 
 		go func() {
@@ -300,16 +363,14 @@ func Build(ctx context.Context, name string, verbosity int, cache bool, dryrun b
 		}()
 
 		if err := cmd.Wait(); err != nil {
-			return fmt.Errorf("building image with vmdb2: %w", err)
-		}
-
-		if img.IncludeMiniccc {
-			notes.AddWarnings(ctx, false, fmt.Errorf("inject_miniccc setting is DEPRECATED - use 'image inject-miniexe' subcommand after image is built"))
+			return fmt.Errorf("building image with %s: %w", script, err)
 		}
 
 		if img.IncludeProtonuke {
 			notes.AddWarnings(ctx, false, fmt.Errorf("inject_protonuke setting is DEPRECATED - use 'image inject-miniexe' subcommand after image is built"))
 		}
+
+		ChangeStatus(name, username, "BUILT")
 	}
 
 	return nil
@@ -333,12 +394,54 @@ func List() ([]types.Image, error) {
 			return nil, fmt.Errorf("decoding image spec: %w", err)
 		}
 
-		img := types.Image{Metadata: c.Metadata, Spec: spec}
+		status := new(v1.ImageStatus)
+		if err := mapstructure.Decode(c.Status, status); err != nil {
+			return nil, fmt.Errorf("decoding imagestatus spec: %w", err)
+		}
+
+		img := types.Image{Metadata: c.Metadata, Spec: spec, Status: status}
 
 		images = append(images, img)
 	}
 
 	return images, nil
+}
+
+func GetImageStoreName(name string, img *v1.Image, user string) string {
+	var expName string
+	if img.Global {
+		expName = name
+	} else {
+		expName = fmt.Sprintf("%s-%s", user, name)
+	}
+
+	return expName
+}
+func ChangeStatus(name, username, status string) error {
+	c, err := store.NewConfig("image/" + name)
+	if err != nil {
+		return fmt.Errorf("creating new image config for %s: %w", name, err)
+	}
+
+	if err := store.Get(c); err != nil {
+		return fmt.Errorf("getting config from store: %w", err)
+	}
+
+	var imgStatus v1.ImageStatus
+
+	if err := mapstructure.Decode(c.Status, &imgStatus); err != nil {
+		return fmt.Errorf("decoding image status: %w", err)
+	}
+
+	imgStatus.SetStatus(username, status)
+
+	c.Status = structs.MapDefaultCase(imgStatus, structs.CASESNAKE)
+
+	if err := store.Update(c); err != nil {
+		return fmt.Errorf("updating image config in store: %w", err)
+	}
+
+	return nil
 }
 
 // Update retrieves the named image configuration file from the store and will
@@ -686,6 +789,21 @@ func inject(disk string, injects ...string) error {
 	if err := mmcli.ErrorResponse(mmcli.Run(cmd)); err != nil {
 		return fmt.Errorf("injecting files into disk %s: %w", disk, err)
 	}
+
+	return nil
+}
+
+func Delete(name string) error {
+
+	if name == "" {
+		return fmt.Errorf("The name of the configuration to delete is required")
+	}
+
+	if err := config.Delete("image/" + name); err != nil {
+		err := util.HumanizeError(err, "Unable to delete the "+name+" image")
+		return err.Humanized()
+	}
+	fmt.Printf("The configuration for the %s image was deleted\n", name)
 
 	return nil
 }

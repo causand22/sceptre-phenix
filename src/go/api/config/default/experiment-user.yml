@@ -39,3 +39,13 @@ spec:
     - "*"
     verbs:
     - list
+  - resources:
+    - images
+    - "images/*"
+    verbs:
+    - list
+    - create
+    - delete
+    - edit
+    - build
+  

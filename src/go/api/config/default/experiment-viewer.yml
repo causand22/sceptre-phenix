@@ -10,6 +10,7 @@ spec:
     - "experiments/*"
     - vms
     - "vms/*"
+    - images
     verbs:
     - list
     - get
@@ -24,3 +25,8 @@ spec:
     verbs:
     - post
     - delete
+  - resources:
+    - images
+    - "images/*"
+    verbs:
+    - list

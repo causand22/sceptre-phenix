@@ -99,6 +99,13 @@ func GetVersionedStatusForKind(kind, version string) (interface{}, error) {
 		default:
 			return nil, fmt.Errorf("unknown version %s for %s", version, kind)
 		}
+	case "Image":
+		switch version {
+		case "v1":
+			return new(v1.ImageStatus), nil
+		default:
+			return nil, fmt.Errorf("unknown version %s for %s", version, kind)
+		}
 	default:
 		return nil, fmt.Errorf("unknown kind %s", kind)
 	}
