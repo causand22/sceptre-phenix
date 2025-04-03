@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"phenix/api/config"
+	"phenix/api/settings"
 	"phenix/util/plog"
 	"phenix/web/broker"
 	"phenix/web/rbac"
@@ -98,6 +99,12 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(body, &req); err != nil {
 		plog.Error("unmashaling request body", "err", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	if !settings.IsPasswordValid(req.Password) {
+		plog.Error("password does not meet requirements", "requester", ctx.Value("user").(string))
+		http.Error(w, "password does not meet requirements", http.StatusBadRequest)
 		return
 	}
 

@@ -6,14 +6,14 @@ login and returns a user to Experiments component if successful.
 -->
 
 <template>
-  <div class="container">
+  <div @click="resetTimer" @keydown="resetTimer">
     <app-header></app-header>
-    <div class="row">
+    <div class="row container is-fullhd px-4">
       <div class="col-xs-12">
         <router-view></router-view>
       </div>
-    <app-footer></app-footer>
     </div>
+    <app-footer></app-footer>
   </div>
 </template>
 
@@ -26,12 +26,18 @@ login and returns a user to Experiments component if successful.
       appHeader: Header,
       appFooter: Footer
     },
+    mounted(){
+      window.addEventListener('click', this.resetTimer);
+      window.addEventListener('keydown', this.resetTimer);
+    },
     
     beforeDestroy () {
       this.wsDisconnect();
       if ( this.unwatch ) {
         this.unwatch();
       }
+      window.removeEventListener('click', this.resetTimer);
+      window.removeEventListener('keydown', this.resetTimer);
     },
     
     async created () {
@@ -64,16 +70,30 @@ login and returns a user to Experiments component if successful.
         }
       )
     },
+    data () {
+      return {
+        socket: null,
+        timeout: {
+          enabled: false,
+          timeout_min: 30,
+          warning_min: 3,
+        },
+        warnToast: null,
+      }
+    },
+
+    beforeUpdate(){
+      this.getSettings();
+    },
 
     methods: {
-      data () {
-        return {
-          socket: null
-        }
-      },
-
       wsConnect () {
         let path = `${process.env.BASE_URL}api/v1/ws`;
+
+        if (this.$route.path === "/signin" || this.$route.path === "/login") {
+          console.log("skipping websocket connect until login")
+          return
+        }
 
         if (this.$store.getters.token) {
           path += `?token=${this.$store.getters.token}`;
@@ -82,6 +102,7 @@ login and returns a user to Experiments component if successful.
         let proto = location.protocol == "https:" ? "wss://" : "ws://";
         let url   = proto + location.host + path;
 
+        console.log("connect websocket")
         this.$connect(url);
 
         // Separate, stand-alone websocket connection to handle app-wide
@@ -111,12 +132,82 @@ login and returns a user to Experiments component if successful.
                 duration: 5000
               });
             }
-
-            if ( msg.resource.type == 'log' ) {
-              this.$store.commit( 'LOG', msg.result );
-            }
           }
         });
+      },
+      getSettings(){ // TODO: this should be pushed over ws instead of only on page change
+        this.$http.get('settings/timeout').then(
+          response => {
+            response.json().then( state => {
+              this.timeout = state
+            })
+          }
+        )
+      },
+      startLogoutTimer(){
+        if (!this.timeout.enabled || !this.$store.getters.auth){
+          return
+        }
+        // timeout_min: 30,
+        // warning_min: 3,
+
+        var timeout = this.timeout.timeout_min
+        var warning = this.timeout.warning_min
+
+        if (timeout <= 0) {
+          timeout = 30
+        }
+
+        var diff = timeout - warning
+        if (warning > 0) {
+          this.logoutTimer = setTimeout(this.warnUser, 1000 * 60 * diff, warning)
+        } else {
+          //no warning, send straight to log out
+          this.logoutTimer = setTimeout(this.logoutUser, 1000 * 60 * timeout)
+        }
+      },
+      warnUser(timeLeft){
+
+        var message = `Still there? Inactive auto log out in ${timeLeft} minutes.`
+        if (timeLeft == 1) {
+          message = `Still there? Inactive auto log out in ${timeLeft} minute.`
+        }
+        this.warnToast = this.$buefy.toast.open({
+          message: message,
+          type: 'is-warning',
+          indefinite: true
+        });
+        this.logoutTimer = setTimeout(this.logoutUser, 1000 * 60 * timeLeft);
+      },
+      logoutUser(){
+        if (this.warnToast) {
+          this.warnToast.close();
+          this.warnToast = null;
+        }
+        this.$http.get( 'logout' ).then(
+          response => {
+            if ( response.status == 204 ) {
+              this.$store.commit( 'LOGOUT' );
+            }
+          }
+        );
+      },
+      resetTimer() {
+        if (!this.timeout.enabled) {
+          return
+        }
+        if (this.warnToast) {
+          this.warnToast.close();
+          this.warnToast = null;
+        }
+        clearTimeout(this.logoutTimer);
+        this.startLogoutTimer();
+      },
+    },
+    watch: {
+      '$route': function(to, _) {
+        if (!this.socket && !(to.path === "/signin" || to.path === "/login"))
+          this.wsConnect();
       }
     }
   }
@@ -257,11 +348,20 @@ clue what this stuff does.
     transform: rotate( 0deg );
   }
 
+  .b-table {
+    .table {
+      td {
+        vertical-align: middle;
+      }
+    }
+  }
+
   // Import Bulma's core
   @import "~bulma/sass/utilities/_all";
 
   $body-background-color: #333;
   $table-background-color: #484848;
+  $table-row-hover-background-color: #777777;
   
   $button-text-color: whitesmoke;
 
@@ -273,6 +373,8 @@ clue what this stuff does.
   $light-invert: findColorInvert( $light );
 
   $progress-text-color: black;
+
+  $fullhd: 1536px + (2 * $gap);
 
   $colors: (
     "light": ( $light, $light-invert ),
