@@ -17,7 +17,9 @@
           <b-field label="Last Name">
             <b-input type="text" v-model="user.last_name"></b-input>
           </b-field>
-          <b-field label="Password">
+          <b-field label="Password"
+            :message="createModalErrors.passwordErrorMessage"
+            :type="createModalErrors.passwordErrorLevel">
             <b-input type="password" minlength="8" maxlength="32" v-model="user.password"></b-input>
           </b-field>
           <b-field label="Confirm Password">
@@ -41,7 +43,9 @@
           <b-input type="text" v-model="user.resource_names"></b-input>
         </section>
         <footer class="modal-card-foot buttons is-right">
-          <button class="button is-light" @click="createUser">Create User</button>
+          <button class="button is-light"
+            :disabled="!check_password_validity()"
+            @click="createUser">Create User</button>
         </footer>
       </div>
     </b-modal>
@@ -118,7 +122,6 @@
       </div>
     </b-modal>
     <template>
-      <hr>
       <b-field grouped position="is-right">
         <p v-if="roleAllowed('users', 'create')" class="control">
           <b-tooltip label="create a new user" type="is-light is-left">
@@ -158,12 +161,15 @@
           <b-table-column field="role" label="Role" sortable v-slot="props">
             {{ props.row.role_name ? props.row.role_name : "Not yet assigned" }}
           </b-table-column>
-          <b-table-column label="Actions" width="100" centered v-slot="props">
+          <b-table-column label="Actions" width="150" centered v-slot="props">
             <button class="button is-light is-small action" @click="newToken( props.row.username )">
               <b-icon icon="key"></b-icon>
             </button>
             <button v-if="roleAllowed('users', 'delete', props.row.username)" class="button is-light is-small action" @click="deleteUser( props.row.username )">
               <b-icon icon="trash"></b-icon>
+            </button>
+            <button v-if="roleAllowed('users', 'patch', props.row.username)" class="button is-light is-small action" @click="editUser(props.row.username)">
+              <b-icon icon="pencil"></b-icon>
             </button>
           </b-table-column>
         </b-table>
@@ -189,11 +195,12 @@
     async created () {
       this.$options.sockets.onmessage = this.handler;
       this.updateUsers();
+      this.getPasswordRequirements();
     },
 
     computed: {
       paginationNeeded () {
-        var user = localStorage.getItem( 'user' );
+        var user = this.$store.getters.username;
 
         if ( localStorage.getItem( user + '.lastPaginate' ) ) {
           this.table.isPaginated = localStorage.getItem( user + '.lastPaginate' )  == 'true';
@@ -230,9 +237,9 @@
 
             user.resource_names = user.resource_names.join( ' ' );
             users.push( user );
-      
+
             this.users = [ ...users ];
-          
+
             this.$buefy.toast.open({
               message: 'The ' + msg.resource.name + ' user was created.',
               type: 'is-success'
@@ -252,9 +259,9 @@
                 break;
               }
             }
-          
+
             this.users = [ ...users ];
-          
+
             this.$buefy.toast.open({
               message: 'The ' + msg.resource.name + ' user was updated.',
               type: 'is-success'
@@ -319,7 +326,7 @@
       },
 
       changePaginate () {
-        var user = localStorage.getItem( 'user' );
+        var user = this.$store.getters.username;
         localStorage.setItem( user + '.lastPaginate', this.table.isPaginated );
       },
 
@@ -370,6 +377,17 @@
 
           return;
         }
+
+        if ( !this.check_password_validity(this.user.password)) {
+          //check_password_validity
+          this.$buefy.toast.open({
+            message: 'Password does not meet requirements',
+            type:'is-warning',
+            duration: 4000
+          })
+          return;
+        }
+
 
         if ( !this.user.confirmPassword ) {
           this.$buefy.toast.open({
@@ -579,9 +597,59 @@
 
       resetLocalUser () {
         this.user = {};
-      }
-    },
+      },
+      check_password_validity() {
+        let password = this.user.password
+        if (password == undefined) {
+          return true
+        }
+        if (password.length == 0 ){
+          //don't want errors immediately on modal if they haven't typed in anything yet
+          this.createModalErrors.passwordErrorMessage = null
+          this.createModalErrors.passwordErrorLevel = null
+          return true
+        }
+        if (password.length < this.passwordReqs.min_length) {
+          this.createModalErrors.passwordErrorMessage = "Password must be longer than " + this.passwordReqs.min_length + " characters."
+          this.createModalErrors.passwordErrorLevel = "is-danger"
+          return false
+        }
+        if (! /[a-z]/.test(password) && this.passwordReqs.lowercase_req) {
+          this.createModalErrors.passwordErrorMessage = "Password must contain a lowercase letter"
+          this.createModalErrors.passwordErrorLevel = "is-danger"
+          return false
+        }
+        if (! /[A-Z]/.test(password) && this.passwordReqs.uppercase_req) {
+          this.createModalErrors.passwordErrorMessage = "Password must contain an uppercase letter"
+          this.createModalErrors.passwordErrorLevel = "is-danger"
+          return false
+        }
+        if (! /\d/.test(password) && this.passwordReqs.number_req) {
+          this.createModalErrors.passwordErrorMessage = "Password must contain a number"
+          this.createModalErrors.passwordErrorLevel = "is-danger"
+          return false
+        }
+        if (! /\W/.test(password) && this.passwordReqs.symbol_req) {
+          this.createModalErrors.passwordErrorMessage = "Password must contain a symbol"
+          this.createModalErrors.passwordErrorLevel = "is-danger"
+          return false
+        }
 
+        this.createModalErrors.passwordErrorMessage = null
+        this.createModalErrors.passwordErrorLevel = null
+        return true
+      },
+      getPasswordRequirements(){
+        this.$http.get('settings/password').then(
+          response => {
+            response.json().then( state => {
+              console.log(state);
+              this.passwordReqs = state
+            });
+          }
+        )
+      },
+    },
     data () {
       return {
         table: {
@@ -600,6 +668,17 @@
         isCreateActive: false,
         isEditActive: false,
         isNewTokenActive: false,
+        passwordReqs: {
+          number_req: false,
+          symbol_req: false,
+          lowercase_req: false,
+          uppercase_req: false,
+          min_length: 8,
+        },
+        createModalErrors:{ 
+          passwordErrorMessage: null,
+          passwordErrorLevel: null
+        },
         isProxyTokenCopied: false,
         isWaiting: true
       }
