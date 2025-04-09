@@ -251,6 +251,12 @@ func PrintTableOfSettings(writer io.Writer, settings []types.Setting) {
 
 	table.SetHeader(cols)
 
+	table.SetColumnAlignment([]int{
+		tablewriter.ALIGN_DEFAULT,
+		tablewriter.ALIGN_DEFAULT,
+		tablewriter.ALIGN_RIGHT,
+	})
+
 	for _, setting := range settings {
 		row := []string{
 			setting.Spec.Name,

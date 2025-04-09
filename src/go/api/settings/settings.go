@@ -12,6 +12,21 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+/*
+Adding a new setting:
+
+1. Add to 'Settings' struct in settings.go
+2. Add to DEFAULT_SETTINGS in defaults.go
+3. Update Getter and Setter functions
+	- If category already exists
+		- add to settings category file (i.e. password.go)
+		- update GET and UPDATE functions
+	- If category is new
+		- create new file for the categroy, make Get and Update function
+		- Add new category to GetSettings and UpdateAllSettings (settings.go)
+4. Update Settings.vue for UI visibility
+*/
+
 type Settings struct {
 	PasswordSettings PasswordSettings `json:"password_settings"`
 }

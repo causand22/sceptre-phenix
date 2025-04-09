@@ -10,22 +10,6 @@ import (
 	"github.com/activeshadow/structs"
 )
 
-/*
-Adding a new setting
-
-1. Add to DEFAULT_SETTINGS (below)
-2. Add to settings.proto
-3. Update Getter and Setter functions
-	- If category already exists
-		- add to settings category file (i.e. password.go, timeout.go)
-		- update GET and UPDATE functions
-	- If category is new
-		- create new file for the categroy, make Get and Update function
-		- Add new category to GetProtoSettings and UpdateAllSettings
-4. Update Settings.vue
-
-*/
-
 var DEFAULT_SETTINGS = []v2.Setting{
 	{Category: "Password", Name: "NumberReq", Type: v2.SettingValueBool, Value: strconv.FormatBool(true)},
 	{Category: "Password", Name: "SymbolReq", Type: v2.SettingValueBool, Value: strconv.FormatBool(true)},

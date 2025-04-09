@@ -33,32 +33,8 @@
             :controls="false">
           </b-numberinput>
         </b-field>
-        <h3>Timeout Settings</h3>
-        <b-field>
-          <b-switch v-model="settings_obj.timeout_settings.enabled">
-            Log out users after period of inactivity
-          </b-switch>
-        </b-field>
-        <b-field>
-          Time (minutes) to log out users after idle for
-          <b-numberinput v-model="settings_obj.timeout_settings.timeout_min"
-            :disabled="!settings_obj.timeout_settings.enabled"
-            :controls="false"
-            step=".5"
-            class="custom-small">
-          </b-numberinput>
-        </b-field>
-        <b-field>
-          Display idle user logout with (minutes) left
-          <b-numberinput v-model="settings_obj.timeout_settings.warning_min"
-            :disabled="!settings_obj.timeout_settings.enabled"
-            :controls="false"
-            step=".5"
-            class="custom-small">
-          </b-numberinput>
-        </b-field>
+
         <hr>
-        <!-- <b-button @click="getSettings">Reset Form</b-button> -->
         <b-button @click="sendSettingsToServer">Save Changes</b-button>
       </form>
     </div>
@@ -118,11 +94,6 @@ export default {
           lowercase_req: false,
           uppercase_req: false,
           min_length: 8,
-        },
-        timeout_settings: {
-          enabled: false,
-          timeout_min: 30,
-          warning_min: 3,
         },
       },
     };
