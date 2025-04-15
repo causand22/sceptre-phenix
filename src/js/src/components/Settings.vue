@@ -28,12 +28,11 @@
           Minimum length of password
           <b-numberinput v-model="settings_obj.password_settings.min_length"
             class="custom-small"
-            min="4"
+            min="8"
             max="32"
             :controls="false">
           </b-numberinput>
         </b-field>
-
         <hr>
         <b-button @click="sendSettingsToServer">Save Changes</b-button>
       </form>

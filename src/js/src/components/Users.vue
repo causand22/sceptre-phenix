@@ -18,8 +18,8 @@
             <b-input type="text" v-model="user.last_name"></b-input>
           </b-field>
           <b-field label="Password"
-            :message="createModalErrors.passwordErrorMessage"
-            :type="createModalErrors.passwordErrorLevel">
+            :message="createModalErrorMessage"
+            :type="createModalErrorLevel">
             <b-input type="password" minlength="8" maxlength="32" v-model="user.password"></b-input>
           </b-field>
           <b-field label="Confirm Password">
@@ -44,7 +44,7 @@
         </section>
         <footer class="modal-card-foot buttons is-right">
           <button class="button is-light"
-            :disabled="!check_password_validity()"
+             :disabled="!createPasswordOk"
             @click="createUser">Create User</button>
         </footer>
       </div>
@@ -64,7 +64,9 @@
           <b-field label="Password">
             <b-input type="password" v-model="user.password"></b-input>
           </b-field>
-          <b-field label="New Password">
+          <b-field label="New Password"
+            :message="updateModalErrorMessage"
+            :type="updateModalErrorLevel">
             <b-input type="password" minlength="8" maxlength="32" v-model="user.new_password"></b-input>
           </b-field>
           <b-field v-if="roleAllowed('users', 'create')" label="Role">
@@ -79,7 +81,9 @@
           </b-field>
         </section>
         <footer class="modal-card-foot buttons is-right">
-          <button class="button is-light" @click="updateUser">Update User</button>
+          <button class="button is-light"
+             :disabled="!updatePasswordOk"
+            @click="updateUser">Update User</button>
         </footer>
       </div>
     </b-modal>
@@ -212,7 +216,31 @@
         } else {
           return true;
         }
-      }
+      },
+      createModalErrorMessage() {
+        return this.get_password_error(this.user.password)
+      },
+      updateModalErrorMessage() {
+        return this.get_password_error(this.user.new_password)
+      },
+      createPasswordOk() {
+        return this.createModalErrorMessage == null
+      },
+      updatePasswordOk() {
+        return this.updateModalErrorMessage == null
+      },
+      createModalErrorLevel() {
+        if (this.createModalErrorMessage != null){
+          return 'is-danger'
+        }
+        return null
+      },
+      updateModalErrorLevel() {
+        if (this.updateModalErrorMessage != null){
+          return 'is-danger'
+        }
+        return null
+      },
     },
 
     methods: {
@@ -378,7 +406,7 @@
           return;
         }
 
-        if ( !this.check_password_validity(this.user.password)) {
+        if (this.get_password_error(this.user.password) != null) {
           //check_password_validity
           this.$buefy.toast.open({
             message: 'Password does not meet requirements',
@@ -409,8 +437,6 @@
           return;
         }
 
-        delete this.user.confirmPassword;
-
         if ( !this.user.role_name ) {
           this.$buefy.toast.open({
             message: 'You must select a role',
@@ -421,13 +447,13 @@
           return;
         }
 
+        delete this.user.confirmPassword;
+
         if ( this.user.resource_names ) {
           this.user.resource_names = this.user.resource_names.split( ' ' );
         }
 
         this.isWaiting = true;
-        
-        let name = this.user.username;
         
         this.$http.post(
           'users', this.user
@@ -598,46 +624,26 @@
       resetLocalUser () {
         this.user = {};
       },
-      check_password_validity() {
-        let password = this.user.password
-        if (password == undefined) {
-          return true
-        }
-        if (password.length == 0 ){
-          //don't want errors immediately on modal if they haven't typed in anything yet
-          this.createModalErrors.passwordErrorMessage = null
-          this.createModalErrors.passwordErrorLevel = null
-          return true
+      get_password_error(password) {
+        if (password == undefined || password.length == 0 ){
+          return null
         }
         if (password.length < this.passwordReqs.min_length) {
-          this.createModalErrors.passwordErrorMessage = "Password must be longer than " + this.passwordReqs.min_length + " characters."
-          this.createModalErrors.passwordErrorLevel = "is-danger"
-          return false
+          return "Password must be longer than " + this.passwordReqs.min_length + " characters."
         }
         if (! /[a-z]/.test(password) && this.passwordReqs.lowercase_req) {
-          this.createModalErrors.passwordErrorMessage = "Password must contain a lowercase letter"
-          this.createModalErrors.passwordErrorLevel = "is-danger"
-          return false
+          return "Password must contain a lowercase letter"
         }
         if (! /[A-Z]/.test(password) && this.passwordReqs.uppercase_req) {
-          this.createModalErrors.passwordErrorMessage = "Password must contain an uppercase letter"
-          this.createModalErrors.passwordErrorLevel = "is-danger"
-          return false
+          return "Password must contain an uppercase letter"
         }
         if (! /\d/.test(password) && this.passwordReqs.number_req) {
-          this.createModalErrors.passwordErrorMessage = "Password must contain a number"
-          this.createModalErrors.passwordErrorLevel = "is-danger"
-          return false
+          return "Password must contain a number"
         }
         if (! /\W/.test(password) && this.passwordReqs.symbol_req) {
-          this.createModalErrors.passwordErrorMessage = "Password must contain a symbol"
-          this.createModalErrors.passwordErrorLevel = "is-danger"
-          return false
+          return "Password must contain a symbol"
         }
-
-        this.createModalErrors.passwordErrorMessage = null
-        this.createModalErrors.passwordErrorLevel = null
-        return true
+        return null
       },
       getPasswordRequirements(){
         this.$http.get('settings/password').then(
@@ -674,10 +680,6 @@
           lowercase_req: false,
           uppercase_req: false,
           min_length: 8,
-        },
-        createModalErrors:{ 
-          passwordErrorMessage: null,
-          passwordErrorLevel: null
         },
         isProxyTokenCopied: false,
         isWaiting: true

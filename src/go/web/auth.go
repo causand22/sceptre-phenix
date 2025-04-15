@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"phenix/api/settings"
 	"phenix/util/plog"
 	"phenix/web/rbac"
 	"phenix/web/util"
@@ -62,7 +63,20 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if !settings.IsPasswordValid(req.Password) {
+		plog.Error("password does not meet requirements")
+		errStr := fmt.Sprintf("password does not meet the requirements:\n%s", settings.GetPasswordSettingsString())
+		http.Error(w, errStr, http.StatusBadRequest)
+		return
+	}
+
+	plog.Debug("new rbac user time")
 	u := rbac.NewUser(req.Username, req.Password)
+	if u == nil {
+		//can happen if username is the same as an existing user
+		http.Error(w, "error creating user", http.StatusInternalServerError)
+		return
+	}
 
 	u.Spec.FirstName = req.FirstName
 	u.Spec.LastName = req.LastName

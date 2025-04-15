@@ -5,14 +5,15 @@ import (
 	"phenix/types"
 	"phenix/util/plog"
 	"strconv"
+	"strings"
 	"unicode"
 )
 
 //Set custom hard coded limits on settings here
 
 const (
-	MAX_PASSWORD_LEN = 32
-	MIN_PASSWORD_LEN = 8
+	MAX_PASSWORD_MIN_LEN = 32
+	MIN_PASSWORD_MIN_LEN = 8
 )
 
 type PasswordSettings struct {
@@ -74,7 +75,6 @@ func GetPasswordSettingsFromList(settings []types.Setting) (PasswordSettings, er
 		}
 	}
 	return passwordSettings, nil
-
 }
 
 func UpdatePasswordSettings(newSettings PasswordSettings) error {
@@ -99,8 +99,8 @@ func UpdatePasswordSettings(newSettings PasswordSettings) error {
 	}
 
 	minLen := newSettings.MinLength
-	if minLen > 32 || minLen < 8 {
-		return fmt.Errorf("Minimum password length must be between 8 and 32")
+	if minLen > MAX_PASSWORD_MIN_LEN || minLen < MIN_PASSWORD_MIN_LEN {
+		return fmt.Errorf("Minimum password length must be between %d and %d", MIN_PASSWORD_MIN_LEN, MAX_PASSWORD_MIN_LEN)
 	}
 	_, err = Update("Password", "MinLength", formatInt(newSettings.MinLength))
 	if err != nil {
@@ -147,4 +147,39 @@ func IsPasswordValid(password string) bool {
 	res = res && (symbol || !ps.SymbolReq)
 
 	return res
+}
+
+func GetPasswordSettingsString() string {
+	settings, err := GetPasswordSettings()
+	if err != nil {
+		return ""
+	}
+
+	var rules []string
+	rules = append(rules, fmt.Sprintf("Password requires %d characters", settings.MinLength))
+
+	if settings.LowercaseReq {
+		rules = append(rules, "Password requires a lowercase letter")
+	}
+	if settings.UppercaseReq {
+		rules = append(rules, "Password requires an uppercase letter")
+	}
+	if settings.NumberReq {
+		rules = append(rules, "Password requires a number")
+	}
+	if settings.SymbolReq {
+		rules = append(rules, "Password requires a symbol")
+	}
+
+	var sb strings.Builder
+
+	sb.WriteString("<ol>")
+	for _, rule := range rules {
+		sb.WriteString("<li>")
+		sb.WriteString(rule)
+		sb.WriteString("</li>")
+	}
+	sb.WriteString("</ol>")
+
+	return sb.String()
 }
