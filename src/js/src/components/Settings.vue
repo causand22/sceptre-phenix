@@ -54,7 +54,7 @@ export default {
       this.$http.get('settings').then(
         response => {
           response.json().then( state => {
-            console.log(state)
+            // console.log(state)
             this.settings_obj = state
           })
         }
@@ -68,7 +68,7 @@ export default {
         'settings', this.settings_obj, { timeout: 0 }
       ).then(
           resp => {
-            console.log(resp);
+            // console.log(resp);
             this.$buefy.toast.open({
               message: "Settings updated",
               type: 'is-success',

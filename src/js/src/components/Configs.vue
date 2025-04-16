@@ -1096,7 +1096,7 @@
             // reason... they just automatically get confirmed.
             if ( confirm( 'Any edits will be lost... are you sure?' ) ) {
               this.resetEditor();
-            }
+            };
           }.bind( this ));
         }.bind( this ));
 

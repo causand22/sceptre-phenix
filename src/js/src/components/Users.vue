@@ -406,8 +406,7 @@
           return;
         }
 
-        if (this.get_password_error(this.user.password) != null) {
-          //check_password_validity
+        if (! this.createPasswordOk) {
           this.$buefy.toast.open({
             message: 'Password does not meet requirements',
             type:'is-warning',
