@@ -65,7 +65,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 
 	if !settings.IsPasswordValid(req.Password) {
 		plog.Error("password does not meet requirements")
-		errStr := fmt.Sprintf("password does not meet the requirements:\n%s", settings.GetPasswordSettingsString())
+		errStr := fmt.Sprintf("password does not meet the requirements:\n%s", settings.GetPasswordSettingsHTML())
 		http.Error(w, errStr, http.StatusBadRequest)
 		return
 	}

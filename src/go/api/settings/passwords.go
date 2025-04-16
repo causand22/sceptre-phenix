@@ -149,7 +149,7 @@ func IsPasswordValid(password string) bool {
 	return res
 }
 
-func GetPasswordSettingsString() string {
+func GetPasswordSettingsHTML() string {
 	settings, err := GetPasswordSettings()
 	if err != nil {
 		return ""

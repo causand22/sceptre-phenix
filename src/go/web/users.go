@@ -105,7 +105,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if !settings.IsPasswordValid(req.Password) {
 		plog.Error("password does not meet requirements", "requester", ctx.Value("user").(string))
-		errStr := fmt.Sprintf("password does not meet the requirements:\n%s", settings.GetPasswordSettingsString())
+		errStr := fmt.Sprintf("password does not meet the requirements:\n%s", settings.GetPasswordSettingsHTML())
 		http.Error(w, errStr, http.StatusBadRequest)
 		return
 	}
@@ -269,7 +269,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 		if !settings.IsPasswordValid(req.NewPassword) {
 			plog.Error("new password does not meet requirements", "requester", ctx.Value("user").(string))
-			errStr := fmt.Sprintf("new password does not meet the requirements:\n%s", settings.GetPasswordSettingsString())
+			errStr := fmt.Sprintf("new password does not meet the requirements:\n%s", settings.GetPasswordSettingsHTML())
 			http.Error(w, errStr, http.StatusBadRequest)
 			return
 		}
