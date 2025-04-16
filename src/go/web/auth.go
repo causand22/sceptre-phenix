@@ -70,7 +70,6 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plog.Debug("new rbac user time")
 	u := rbac.NewUser(req.Username, req.Password)
 	if u == nil {
 		//can happen if username is the same as an existing user
