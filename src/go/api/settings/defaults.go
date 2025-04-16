@@ -15,7 +15,7 @@ var DEFAULT_SETTINGS = []v2.Setting{
 	{Category: "Password", Name: "SymbolReq", Type: v2.SettingValueBool, Value: strconv.FormatBool(true)},
 	{Category: "Password", Name: "LowercaseReq", Type: v2.SettingValueBool, Value: strconv.FormatBool(true)},
 	{Category: "Password", Name: "UppercaseReq", Type: v2.SettingValueBool, Value: strconv.FormatBool(false)},
-	{Category: "Password", Name: "MinLength", Type: v2.SettingValueInt, Value: formatInt(10)},
+	{Category: "Password", Name: "MinLength", Type: v2.SettingValueInt, Value: formatInt(8)},
 }
 
 func GetDefault(category, name string) (v2.Setting, bool) {
