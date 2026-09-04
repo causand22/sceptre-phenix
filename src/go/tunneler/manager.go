@@ -18,7 +18,7 @@ type listenerManager struct {
 }
 
 func newListenerManager() *listenerManager {
-	return &listenerManager{
+	return &listenerManager{ //nolint:exhaustruct // partial initialization
 		listeners: make(map[string]*LocalListener),
 		byID:      make(map[int]*LocalListener),
 	}

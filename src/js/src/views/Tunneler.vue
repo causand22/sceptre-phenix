@@ -32,6 +32,14 @@
         <br />
         <br />
 
+        The <code>phenix-tunneler serve</code> command can also provide a local
+        web interface for listing and managing listeners. It is disabled by
+        default; enable it with the <code>--web-listen 127.0.0.1:8080</code>
+        flag (the address or port can be changed if needed).
+
+        <br />
+        <br />
+
         Once the phenix-tunneler server is running locally, it will
         automatically get notified of port forwards created in the UI. If the
         same user that logged into the phenix-tunneler server is the same user
